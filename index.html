@@ -40,7 +40,8 @@
 <div id="inicioContainer">
   <h1>Controle de Placas</h1>
   <p>Digite a placa para verificar:</p>
-  <input type="text" id="placaInput" placeholder="Ex: ABC1234" oninput="this.value = this.value.toUpperCase()">
+  <!-- LIMITE DE 7 CARACTERES E MAIÚSCULO -->
+  <input type="text" id="placaInput" placeholder="Ex: ABC1234" maxlength="7" oninput="this.value = this.value.toUpperCase()">
   <button onclick="verificarPlaca()">Verificar</button>
   <div id="mensagem"></div>
   <h2>Placas em andamento</h2>
@@ -60,9 +61,11 @@
 <div id="autorizadosContainer">
   <h2>Autorizados</h2>
   <input type="text" id="nomeAutInput" placeholder="Nome">
-  <input type="text" id="placaAutInput" placeholder="Placa" oninput="this.value=this.value.toUpperCase()">
+  <input type="text" id="placaAutInput" placeholder="Placa" maxlength="7" oninput="this.value=this.value.toUpperCase()">
   <input type="text" id="rgcpfAutInput" placeholder="RG/CPF">
   <button onclick="adicionarAutorizado()">Adicionar</button>
+ <button class="botaoExcluir" onclick="iniciarExclusaoAut()">Excluir</button>
+  <button class="botaoEditar" onclick="iniciarEdicaoAut()">Editar</button>
   <div id="listaAutorizados" class="lista"></div>
 </div>
 
