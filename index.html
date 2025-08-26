@@ -203,7 +203,7 @@ function exportarPDF() {
   linhas.forEach((linha, index) => {
     doc.text(linha, 10, y);
     y += 8;
-    if(y > 280) { //  t cria nova página se passar do limite
+    if(y > 280) { // cria nova página se passar do limite
       doc.addPage();
       y = 20;
     }
