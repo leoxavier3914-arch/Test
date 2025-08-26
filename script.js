@@ -24,8 +24,14 @@ function atualizarCadastros() {
 function atualizarAutorizados() {
   const listaDiv = document.getElementById("listaAutorizados");
   listaDiv.innerHTML = "";
-  bancoAutorizados.forEach(item => {
-    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</div>`;
+
+  bancoAutorizados.forEach((item, index) => {
+    listaDiv.innerHTML += `
+      <div class="item">
+        <input type="radio" name="selecionadoAut" value="${index}" id="aut${index}">
+        <label for="aut${index}"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</label>
+      </div>
+    `;
   });
 }
 
@@ -49,6 +55,98 @@ function adicionarAutorizado() {
   document.getElementById("placaAutInput").value = "";
   document.getElementById("rgcpfAutInput").value = "";
   alert("Autorizado cadastrado com sucesso!");
+}
+
+function atualizarAutorizados() {
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarAutorizado(index);
+    listaDiv.appendChild(div);
+  });
+}
+
+let autorizadoSelecionado = null;
+
+function atualizarAutorizados() {
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarAutorizado(index);
+    listaDiv.appendChild(div);
+  });
+}
+
+function selecionarAutorizado(index) {
+  const itens = document.querySelectorAll("#listaAutorizados .item");
+  itens.forEach((el, i) => {
+    if (i === index) {
+      el.classList.add("selecionado");
+      autorizadoSelecionado = index;
+    } else {
+      el.classList.remove("selecionado");
+    }
+  });
+}
+
+// ===== Editar autorizado =====
+function iniciarEdicaoAut() {
+  if (autorizadoSelecionado === null) {
+    alert("Selecione um autorizado para editar!");
+    return;
+  }
+  const index = autorizadoSelecionado;
+  const item = bancoAutorizados[index];
+
+  mostrarPopup(`
+    <h3>Editar Autorizado</h3>
+    <input type="text" id="editNome" value="${item.nome}" placeholder="Nome">
+    <input type="text" id="editPlaca" value="${item.placa}" placeholder="Placa">
+    <input type="text" id="editRgcpf" value="${item.rgcpf}" placeholder="RG/CPF">
+    <button class="entrada" onclick="confirmarEdicaoAut(${index})">Confirmar</button>
+  `);
+}
+
+function confirmarEdicaoAut(index) {
+  const nome = document.getElementById("editNome").value;
+  const placa = document.getElementById("editPlaca").value;
+  const rgcpf = document.getElementById("editRgcpf").value;
+
+  if (!nome || !placa || !rgcpf) { alert("Preencha todos os campos!"); return; }
+
+  bancoAutorizados[index] = { nome, placa, rgcpf };
+  salvarBanco();
+  fecharPopup();
+  alert("Autorizado editado com sucesso!");
+
+  // Deseleciona o autorizado editado
+  const itens = document.querySelectorAll("#listaAutorizados .item");
+  itens.forEach(el => el.classList.remove("selecionado"));
+  autorizadoSelecionado = null;
+}
+
+// ===== Excluir autorizado =====
+function iniciarExclusaoAut() {
+  if (autorizadoSelecionado === null) {
+    alert("Selecione um autorizado para excluir!");
+    return;
+  }
+  const index = autorizadoSelecionado;
+
+  if (confirm(`Deseja realmente excluir ${bancoAutorizados[index].nome}?`)) {
+    bancoAutorizados.splice(index, 1);
+    autorizadoSelecionado = null; // limpa seleção
+    salvarBanco();
+    alert("Autorizado excluído com sucesso!");
+  }
 }
 
 // ===== Funções de data =====
@@ -124,17 +222,54 @@ function enviarEmail() {
 // ===== Entrada/Saída de placas =====
 function verificarPlaca() {
   const placaInput = document.getElementById("placaInput");
-  const placa = placaInput.value.toUpperCase(); placaInput.value = placa;
-  const registro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
-  const ultimoHistorico = [...bancoHistorico].reverse().find(h => h.placa === placa);
-  const statusAtual = ultimoHistorico ? ultimoHistorico.status : "-";
-  const cor = statusAtual === "Em andamento" ? "red" : statusAtual === "Finalizado" ? "green" : "black";
+  const placa = placaInput.value.toUpperCase();
+  placaInput.value = placa;
 
-  if (registro) {
-    mostrarPopup(`<h3>Placa encontrada ✅</h3><p><b>Placa:</b> ${placa}</p><p><b>Nome:</b> ${registro.nome}</p><p><b>RG/CPF:</b> ${registro.rgcpf}</p><p><b>Status:</b><span style="color:${cor}">${statusAtual}</span></p><button class="entrada" onclick="marcarEntrada('${placa}')">Entrada</button><button class="saida" onclick="marcarSaida('${placa}')">Saída</button>`);
+  if (placa.length !== 7) { alert("A placa deve ter exatamente 7 caracteres!"); placaInput.value = ""; placaInput.focus(); return; }
+
+  const autorizado = bancoAutorizados.find(i => i.placa === placa);
+  if (autorizado) {
+    mostrarPopup(`
+      <h3>AUTORIZADO ✅</h3>
+      <p><b>Nome:</b> ${autorizado.nome}</p>
+      <p><b>Placa:</b> ${autorizado.placa}</p>
+      <p><b>Modelo:</b> ${autorizado.modelo || '-'}</p>
+      <p><b>Cor:</b> ${autorizado.cor || '-'}</p>
+      <button class="entrada" onclick="fecharPopup()">OK</button>
+    `);
   } else {
-    mostrarPopup(`<h3>Placa não registrada ⚠️</h3><input type="text" id="nomeInput" placeholder="Nome"><input type="text" id="rgcpfInput" placeholder="RG/CPF"><select id="tipoInput"><option value="" disabled selected>Tipo:</option><option value="Despacho">Despacho</option><option value="Retiro">Retiro</option></select><button class="entrada" onclick="entradaNovaPlaca('${placa}')">Entrada</button>`);
+    const registro = bancoCadastros.find(i => i.placa === placa);
+    const ultimoHistorico = [...bancoHistorico].reverse().find(h => h.placa === placa);
+    const statusAtual = ultimoHistorico ? ultimoHistorico.status : "-";
+    const cor = statusAtual === "Em andamento" ? "red" : statusAtual === "Finalizado" ? "green" : "black";
+
+    if (registro) {
+      mostrarPopup(`
+        <h3>Placa encontrada ✅</h3>
+        <p><b>Placa:</b> ${placa}</p>
+        <p><b>Nome:</b> ${registro.nome}</p>
+        <p><b>RG/CPF:</b> ${registro.rgcpf}</p>
+        <p><b>Status:</b><span style="color:${cor}">${statusAtual}</span></p>
+        <button class="entrada" onclick="marcarEntrada('${placa}')">Entrada</button>
+        <button class="saida" onclick="marcarSaida('${placa}')">Saída</button>
+      `);
+    } else {
+      mostrarPopup(`
+        <h3>Placa não registrada ⚠️</h3>
+        <input type="text" id="nomeInput" placeholder="Nome">
+        <input type="text" id="rgcpfInput" placeholder="RG/CPF">
+        <select id="tipoInput">
+          <option value="" disabled selected>Tipo:</option>
+          <option value="Despacho">Despacho</option>
+          <option value="Retiro">Retiro</option>
+        </select>
+        <button class="entrada" onclick="entradaNovaPlaca('${placa}')">Entrada</button>
+      `);
+    }
   }
+
+  placaInput.value = "";
+  placaInput.focus();
 }
 
 function entradaNovaPlaca(placa) {
@@ -189,15 +324,17 @@ function mostrarPagina(p) {
   }
 }
 
-// ===== Limpar tudo com senha =====
+// ===== Limpar histórico com senha =====
 function limparTudo() {
   let senha = prompt("Digite a senha para limpar os dados:");
   if (senha === "1234") {
-    if (confirm("Deseja realmente limpar todos os dados?")) {
-      localStorage.clear();
-      bancoCadastros = []; bancoHistorico = []; bancoAutorizados = [];
-      salvarBanco(); fecharPopup(); document.getElementById("mensagem").innerHTML = "";
-      alert("Todos os dados foram limpos!");
+    if (confirm("Deseja realmente limpar o histórico e mensagens?")) {
+      bancoHistorico = [];
+      localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
+      document.getElementById("mensagem").innerHTML = "";
+      atualizarTabelaAndamento();
+      filtrarHistorico();
+      alert("Histórico e mensagens foram limpos!");
     }
   } else if (senha !== null) { alert("Senha incorreta ❌"); }
 }
@@ -246,3 +383,31 @@ function checarExportacaoAutomaticaPDF() {
 mostrarPagina('inicioContainer');
 salvarBanco();
 window.addEventListener("load", checarExportacaoAutomaticaPDF);
+
+
+// ====== cadastros selecionados ====
+let cadastroSelecionado = null;
+function atualizarCadastros() {
+  const listaDiv = document.getElementById("listaCadastros");
+  listaDiv.innerHTML = "";
+
+  bancoCadastros.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarCadastro(index);
+    listaDiv.appendChild(div);
+  });
+}
+
+function selecionarCadastro(index) {
+  const itens = document.querySelectorAll("#listaCadastros .item");
+  itens.forEach((el, i) => {
+    if (i === index) {
+      el.classList.add("selecionado");
+      cadastroSelecionado = index;
+    } else {
+      el.classList.remove("selecionado");
+    }
+  });
+}
