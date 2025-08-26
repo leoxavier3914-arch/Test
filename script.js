@@ -1,0 +1,248 @@
+// ===== Banco de dados local =====
+let bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
+let bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
+let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
+
+function salvarBanco() {
+  localStorage.setItem("bancoCadastros", JSON.stringify(bancoCadastros));
+  localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
+  localStorage.setItem("bancoAutorizados", JSON.stringify(bancoAutorizados));
+  atualizarCadastros();
+  atualizarTabelaAndamento();
+  atualizarAutorizados();
+}
+
+// ===== Atualização de listas =====
+function atualizarCadastros() {
+  const listaDiv = document.getElementById("listaCadastros");
+  listaDiv.innerHTML = "";
+  bancoCadastros.forEach(item => {
+    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}</div>`;
+  });
+}
+
+function atualizarAutorizados() {
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+  bancoAutorizados.forEach(item => {
+    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</div>`;
+  });
+}
+
+function atualizarTabelaAndamento() {
+  const tbody = document.getElementById("tabelaAndamento");
+  tbody.innerHTML = "";
+  bancoHistorico.filter(h => h.status === "Em andamento").forEach(h => {
+    tbody.innerHTML += `<tr><td>${h.placa}</td><td>${h.nome}</td><td class="horaEntrada">${h.horarioEntrada}</td><td><button class="saida" onclick="marcarSaida('${h.placa}')">Saída</button></td></tr>`;
+  });
+}
+
+// ===== Adicionar autorizado =====
+function adicionarAutorizado() {
+  const nome = document.getElementById("nomeAutInput").value;
+  const placa = document.getElementById("placaAutInput").value;
+  const rgcpf = document.getElementById("rgcpfAutInput").value;
+  if (!nome || !placa || !rgcpf) { alert("Preencha todos os campos!"); return; }
+  bancoAutorizados.push({ nome, placa, rgcpf });
+  salvarBanco();
+  document.getElementById("nomeAutInput").value = "";
+  document.getElementById("placaAutInput").value = "";
+  document.getElementById("rgcpfAutInput").value = "";
+  alert("Autorizado cadastrado com sucesso!");
+}
+
+// ===== Funções de data =====
+function formatarData(d) { const dia = String(d.getDate()).padStart(2, '0'); const mes = String(d.getMonth() + 1).padStart(2, '0'); return `${dia}/${mes}/${d.getFullYear()}`; }
+function converterDataInput(input) { const p = input.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
+
+// ===== Histórico =====
+function filtrarHistorico() {
+  const input = document.getElementById("dataFiltro").value;
+  const dataFiltro = input ? converterDataInput(input) : formatarData(new Date());
+  const listaDiv = document.getElementById("listaHistorico");
+  listaDiv.innerHTML = "";
+  bancoHistorico.filter(i => i.data === dataFiltro).forEach(item => {
+    let cor = item.status === "Em andamento" ? "red" : item.status === "Finalizado" ? "green" : "black";
+    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}<br>Data:${item.data}<br>Status:<span style="color:${cor}">${item.status}</span><br>Entrada:<span class="horaEntrada">${item.horarioEntrada || "-"}</span>|Saída:<span class="horaSaida">${item.horarioSaida || "-"}</span></div>`;
+  });
+}
+
+// ===== Exportação CSV =====
+function exportarCSV() {
+  const dataFiltro = document.getElementById("dataFiltro").value;
+  const dataTexto = dataFiltro ? converterDataInput(dataFiltro) : formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === dataTexto);
+  if (filtered.length === 0) { alert("Nenhum dado para exportar."); return; }
+
+  let csv = "Placa,Nome,Tipo,RG/CPF,Data,Status,Entrada,Saída\n";
+  filtered.forEach(item => {
+    csv += `${item.placa},${item.nome},${item.tipo},${item.rgcpf},${item.data},${item.status},${item.horarioEntrada || '-'},${item.horarioSaida || '-'}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `historico-${dataTexto}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  alert("Exportado com sucesso!");
+}
+
+// ===== Exportação PDF =====
+function exportarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const tabela = document.getElementById("listaHistorico");
+  if (tabela.innerHTML.trim() === "") { alert("Não há dados para exportar!"); return; }
+
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+  let y = 20;
+  const rows = tabela.querySelectorAll(".item");
+  rows.forEach((row) => {
+    doc.setFontSize(12);
+    doc.text(row.innerText.split("\n").join(" | "), 10, y);
+    y += 8;
+    if (y > 280) { doc.addPage(); y = 20; }
+  });
+
+  const dataHoje = new Date().toISOString().split("T")[0];
+  doc.save(`historico-${dataHoje}.pdf`);
+}
+
+// ===== Enviar e-mail =====
+function enviarEmail() {
+  const emailParams = { to_email: "leomatos3914@gmail.com", message: "Olá! Aqui está a mensagem enviada pelo sistema." };
+  emailjs.send("service_t9bocqh", "template_n4uw7xi", emailParams)
+    .then(() => { alert("E-mail enviado com sucesso!"); })
+    .catch(err => { console.error(err); alert("Erro ao enviar e-mail."); });
+}
+
+// ===== Entrada/Saída de placas =====
+function verificarPlaca() {
+  const placaInput = document.getElementById("placaInput");
+  const placa = placaInput.value.toUpperCase(); placaInput.value = placa;
+  const registro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
+  const ultimoHistorico = [...bancoHistorico].reverse().find(h => h.placa === placa);
+  const statusAtual = ultimoHistorico ? ultimoHistorico.status : "-";
+  const cor = statusAtual === "Em andamento" ? "red" : statusAtual === "Finalizado" ? "green" : "black";
+
+  if (registro) {
+    mostrarPopup(`<h3>Placa encontrada ✅</h3><p><b>Placa:</b> ${placa}</p><p><b>Nome:</b> ${registro.nome}</p><p><b>RG/CPF:</b> ${registro.rgcpf}</p><p><b>Status:</b><span style="color:${cor}">${statusAtual}</span></p><button class="entrada" onclick="marcarEntrada('${placa}')">Entrada</button><button class="saida" onclick="marcarSaida('${placa}')">Saída</button>`);
+  } else {
+    mostrarPopup(`<h3>Placa não registrada ⚠️</h3><input type="text" id="nomeInput" placeholder="Nome"><input type="text" id="rgcpfInput" placeholder="RG/CPF"><select id="tipoInput"><option value="" disabled selected>Tipo:</option><option value="Despacho">Despacho</option><option value="Retiro">Retiro</option></select><button class="entrada" onclick="entradaNovaPlaca('${placa}')">Entrada</button>`);
+  }
+}
+
+function entradaNovaPlaca(placa) {
+  const nome = document.getElementById("nomeInput").value;
+  const rgcpf = document.getElementById("rgcpfInput").value;
+  const tipo = document.getElementById("tipoInput").value;
+  if (!nome || !rgcpf || !tipo || !placa) { alert("Preencha todos os campos!"); return; }
+  const hoje = formatarData(new Date());
+  bancoCadastros.push({ nome, placa, rgcpf, tipo });
+  bancoHistorico.push({ nome, placa, rgcpf, tipo, status: "Em andamento", data: hoje, horarioEntrada: new Date().toLocaleTimeString(), horarioSaida: "" });
+  salvarBanco(); fecharPopup(); alert("Entrada registrada com sucesso! ✅");
+}
+
+function marcarEntrada(placa) {
+  const existe = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
+  if (existe) { alert("Essa placa já está em andamento!"); return; }
+  const cadastro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
+  if (!cadastro) return;
+  const hoje = formatarData(new Date());
+  bancoHistorico.push({ nome: cadastro.nome, placa: cadastro.placa, rgcpf: cadastro.rgcpf, tipo: cadastro.tipo || "Autorizado", status: "Em andamento", data: hoje, horarioEntrada: new Date().toLocaleTimeString(), horarioSaida: "" });
+  salvarBanco(); fecharPopup();
+}
+
+function marcarSaida(placa) {
+  const ultimo = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
+  if (!ultimo) return;
+  ultimo.status = "Finalizado"; ultimo.horarioSaida = new Date().toLocaleTimeString();
+  salvarBanco(); document.getElementById("mensagem").innerHTML = "Saída registrada com sucesso! ✅";
+  setTimeout(() => { document.getElementById("mensagem").innerHTML = ""; }, 5000); fecharPopup();
+}
+
+// ===== Popup e menu =====
+function mostrarPopup(c) {
+  document.getElementById("popupConteudo").innerHTML = c;
+  document.getElementById("overlay").style.display = "block";
+  document.getElementById("popupCard").style.display = "block";
+}
+
+function fecharPopup() {
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("popupCard").style.display = "none";
+}
+
+function toggleMenu() { document.getElementById("menu").classList.toggle("menu-open"); }
+function mostrarPagina(p) {
+  ["inicioContainer","cadastroContainer","autorizadosContainer","historicoContainer"].forEach(id => document.getElementById(id).style.display = "none");
+  document.getElementById(p).style.display = "block";
+  if(p==='historicoContainer'&&!document.getElementById("dataFiltro").value){
+    const hoje = new Date();
+    document.getElementById("dataFiltro").value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+    filtrarHistorico();
+  }
+}
+
+// ===== Limpar tudo com senha =====
+function limparTudo() {
+  let senha = prompt("Digite a senha para limpar os dados:");
+  if (senha === "1234") {
+    if (confirm("Deseja realmente limpar todos os dados?")) {
+      localStorage.clear();
+      bancoCadastros = []; bancoHistorico = []; bancoAutorizados = [];
+      salvarBanco(); fecharPopup(); document.getElementById("mensagem").innerHTML = "";
+      alert("Todos os dados foram limpos!");
+    }
+  } else if (senha !== null) { alert("Senha incorreta ❌"); }
+}
+
+// ===== Exportação automática 24h =====
+function checarExportacaoAutomaticaPDF() {
+  const agora = new Date();
+  const ultimaExportacao = localStorage.getItem("ultimaExportacao");
+  let dataInicio;
+
+  if (ultimaExportacao) {
+    const ultima = new Date(ultimaExportacao);
+    const diff = agora - ultima;
+    const horas24 = 24 * 60 * 60 * 1000;
+    if (diff >= horas24) { dataInicio = ultima; } else { return; }
+  } else { dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000); }
+
+  const historicoFiltrado = bancoHistorico.filter(item => {
+    const [dia, mes, ano] = item.data.split("/").map(Number);
+    const dataItem = new Date(ano, mes - 1, dia);
+    return dataItem > dataInicio;
+  });
+
+  if (historicoFiltrado.length === 0) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+  let y = 25;
+  doc.setFontSize(12);
+  historicoFiltrado.forEach(item => {
+    doc.text(`Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`, 10, y);
+    y += 8;
+    if (y > 280) { doc.addPage(); y = 20; }
+  });
+
+  const dataHoje = new Date().toISOString().split("T")[0];
+  doc.save(`historico-${dataHoje}.pdf`);
+  localStorage.setItem("ultimaExportacao", agora.toISOString());
+  console.log("Exportação automática em PDF realizada!");
+}
+
+// ===== Inicialização =====
+mostrarPagina('inicioContainer');
+salvarBanco();
+window.addEventListener("load", checarExportacaoAutomaticaPDF);
