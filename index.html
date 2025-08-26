@@ -1,45 +1,22 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  
-  <script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
-<script type="text/javascript">
-   emailjs.init("vPVpXFO3k8QblVbqr");
-</script>
-  
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
-<link rel="manifest" href="manifest.json">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Controle de Placas</title>
-<style>
-  body { font-family: Arial, sans-serif; background: #f4f4f9; text-align: center; padding: 20px; margin:0; }
-  h1 { color: #333; margin-top: 50px; }
-  input, select, button { padding: 10px; margin: 8px; width: 90%; max-width: 300px; border: 1px solid #ccc; border-radius: 5px; }
-  button { color: white; border: none; cursor: pointer; background: #4CAF50; }
-  .entrada { background: #4CAF50; }
-  .saida { background: #f44336; }
-  .card { background: white; padding: 15px; margin-top: 15px; border-radius: 8px; box-shadow: 0px 2px 6px rgba(0,0,0,0.2); text-align: left; }
-  .lista { margin-top:20px; }
-  .item { border-bottom:1px solid #ddd; padding:8px; text-align:left; }
-  #historicoContainer, #cadastroContainer, #autorizadosContainer, #inicioContainer { display:none; }
-  .horaEntrada { color: green; font-weight: bold; }
-  .horaSaida { color: red; font-weight: bold; }
-  #mensagem { color: green; font-weight: bold; margin-top: 10px; }
-  table { width: 100%; max-width: 600px; margin: 20px auto; border-collapse: collapse; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-  th { background-color: #f2f2f2; }
-  .menu-btn { position: fixed; top: 10px; left: 10px; font-size: 30px; cursor: pointer; z-index: 1001; }
-  .menu-content { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: #333; color: white; overflow-x: hidden; transition: 0.3s; padding-top: 60px; z-index: 1000; }
-  .menu-content a { padding: 10px 20px; text-decoration: none; display: block; color: white; font-weight: bold; }
-  .menu-content a:hover { background: #575757; }
-  .menu-open { left: 0; }
-  #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1001; display: none; }
-  #popupCard { position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: white; padding: 25px 20px 20px 20px; width: 90%; max-width: 400px; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); z-index: 1002; display: none; }
-  #popupCard .fecharBtn { position: absolute; top: -10px; right: -120px; background: none; border: none; font-size: 26px; font-weight: bold; cursor: pointer; color: #f44336; }
-  #exportBtn { background-color: #2196F3; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Placas</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- EmailJS -->
+  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+  <script>
+    // Inicializa EmailJS (mantive sua public key)
+    emailjs.init("vPVpXFO3k8QblVbqr");
+  </script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -101,134 +78,7 @@
   <div id="listaHistorico" class="lista"></div>
 </div>
 
-<script>
-let bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
-let bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
-let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
-
-function salvarBanco() {
-  localStorage.setItem("bancoCadastros", JSON.stringify(bancoCadastros));
-  localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
-  localStorage.setItem("bancoAutorizados", JSON.stringify(bancoAutorizados));
-  atualizarCadastros(); atualizarTabelaAndamento(); atualizarAutorizados();
-}
-
-function atualizarCadastros() {
-  const listaDiv = document.getElementById("listaCadastros");
-  listaDiv.innerHTML = "";
-  bancoCadastros.forEach(item => {
-    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}</div>`;
-  });
-}
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-  bancoAutorizados.forEach(item => {
-    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</div>`;
-  });
-}
-function adicionarAutorizado() {
-  const nome=document.getElementById("nomeAutInput").value;
-  const placa=document.getElementById("placaAutInput").value;
-  const rgcpf=document.getElementById("rgcpfAutInput").value;
-  if(!nome||!placa||!rgcpf){alert("Preencha todos os campos!");return;}
-  bancoAutorizados.push({nome,placa,rgcpf});
-  salvarBanco();
-  document.getElementById("nomeAutInput").value="";
-  document.getElementById("placaAutInput").value="";
-  document.getElementById("rgcpfAutInput").value="";
-  alert("Autorizado cadastrado com sucesso!");
-}
-
-function formatarData(d){const dia=String(d.getDate()).padStart(2,'0');const mes=String(d.getMonth()+1).padStart(2,'0');return `${dia}/${mes}/${d.getFullYear()}`;}
-function converterDataInput(input){const p=input.split('-');return `${p[2]}/${p[1]}/${p[0]}`;}
-function filtrarHistorico(){const input=document.getElementById("dataFiltro").value;const dataFiltro=input?converterDataInput(input):formatarData(new Date());const listaDiv=document.getElementById("listaHistorico");listaDiv.innerHTML="";bancoHistorico.filter(i=>i.data===dataFiltro).forEach(item=>{let cor=item.status==="Em andamento"?"red":item.status==="Finalizado"?"green":"black";listaDiv.innerHTML+=`<div class="item"><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}<br>Data:${item.data}<br>Status:<span style="color:${cor}">${item.status}</span><br>Entrada:<span class="horaEntrada">${item.horarioEntrada||"-"}</span>|Saída:<span class="horaSaida">${item.horarioSaida||"-"}</span></div>`;});}
-function exportarCSV(){const dataFiltro=document.getElementById("dataFiltro").value;const dataTexto=dataFiltro?converterDataInput(dataFiltro):formatarData(new Date());const filtered=bancoHistorico.filter(item=>item.data===dataTexto);if(filtered.length===0){alert("Nenhum dado para exportar.");return;}let csv="Placa,Nome,Tipo,RG/CPF,Data,Status,Entrada,Saída\n";filtered.forEach(item=>{csv+=`${item.placa},${item.nome},${item.tipo},${item.rgcpf},${item.data},${item.status},${item.horarioEntrada||'-'},${item.horarioSaida||'-'}\n`;});const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`historico-${dataTexto}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);alert("Exportado com sucesso!");}
-function atualizarTabelaAndamento(){const tbody=document.getElementById("tabelaAndamento");tbody.innerHTML="";bancoHistorico.filter(h=>h.status==="Em andamento").forEach(h=>{tbody.innerHTML+=`<tr><td>${h.placa}</td><td>${h.nome}</td><td class="horaEntrada">${h.horarioEntrada}</td><td><button class="saida" onclick="marcarSaida('${h.placa}')">Saída</button></td></tr>`;});}
-function toggleMenu(){document.getElementById("menu").classList.toggle("menu-open");}
-function mostrarPagina(p){["inicioContainer","cadastroContainer","autorizadosContainer","historicoContainer"].forEach(id=>document.getElementById(id).style.display="none");document.getElementById(p).style.display="block";if(p==='historicoContainer'&&!document.getElementById("dataFiltro").value){const hoje=new Date();document.getElementById("dataFiltro").value=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;filtrarHistorico();}}
-function mostrarPopup(c){document.getElementById("popupConteudo").innerHTML=c;document.getElementById("overlay").style.display="block";document.getElementById("popupCard").style.display="block";}
-function fecharPopup(){document.getElementById("overlay").style.display="none";document.getElementById("popupCard").style.display="none";}
-function verificarPlaca(){const placaInput=document.getElementById("placaInput");const placa=placaInput.value.toUpperCase();placaInput.value=placa;const registro=bancoCadastros.find(i=>i.placa===placa)||bancoAutorizados.find(i=>i.placa===placa);const ultimoHistorico=[...bancoHistorico].reverse().find(h=>h.placa===placa);const statusAtual=ultimoHistorico?ultimoHistorico.status:"-";const cor=statusAtual==="Em andamento"?"red":statusAtual==="Finalizado"?"green":"black";if(registro){mostrarPopup(`<h3>Placa encontrada ✅</h3><p><b>Placa:</b> ${placa}</p><p><b>Nome:</b> ${registro.nome}</p><p><b>RG/CPF:</b> ${registro.rgcpf}</p><p><b>Status:</b><span id="statusDisplay" style="color:${cor}">${statusAtual}</span></p><button class="entrada" onclick="marcarEntrada('${placa}')">Entrada</button><button class="saida" onclick="marcarSaida('${placa}')">Saída</button>`);}else{mostrarPopup(`<h3>Placa não registrada ⚠️</h3><input type="text" id="nomeInput" placeholder="Nome"><input type="text" id="rgcpfInput" placeholder="RG/CPF"><select id="tipoInput"><option value="" disabled selected>Tipo:</option><option value="Despacho">Despacho</option><option value="Retiro">Retiro</option></select><button class="entrada" onclick="entradaNovaPlaca('${placa}')">Entrada</button>`);}}
-function entradaNovaPlaca(placa){const nome=document.getElementById("nomeInput").value;const rgcpf=document.getElementById("rgcpfInput").value;const tipo=document.getElementById("tipoInput").value;if(!nome||!rgcpf||!tipo||!placa){alert("Preencha todos os campos!");return;}const hoje=formatarData(new Date());bancoCadastros.push({nome,placa,rgcpf,tipo});bancoHistorico.push({nome,placa,rgcpf,tipo,status:"Em andamento",data:hoje,horarioEntrada:new Date().toLocaleTimeString(),horarioSaida:""});salvarBanco();fecharPopup();alert("Entrada registrada com sucesso! ✅");}
-function marcarEntrada(placa){const existe=[...bancoHistorico].reverse().find(h=>h.placa===placa&&h.status==="Em andamento");if(existe){alert("Essa placa já está em andamento!");return;}const cadastro=bancoCadastros.find(i=>i.placa===placa)||bancoAutorizados.find(i=>i.placa===placa);if(!cadastro)return;const hoje=formatarData(new Date());bancoHistorico.push({nome:cadastro.nome,placa:cadastro.placa,rgcpf:cadastro.rgcpf,tipo:cadastro.tipo||"Autorizado",status:"Em andamento",data:hoje,horarioEntrada:new Date().toLocaleTimeString(),horarioSaida:""});salvarBanco();fecharPopup();}
-function marcarSaida(placa){const ultimo=[...bancoHistorico].reverse().find(h=>h.placa===placa&&h.status==="Em andamento");if(!ultimo)return;ultimo.status="Finalizado";ultimo.horarioSaida=new Date().toLocaleTimeString();salvarBanco();document.getElementById("mensagem").innerHTML="Saída registrada com sucesso! ✅";setTimeout(()=>{document.getElementById("mensagem").innerHTML="";},5000);fecharPopup();document.getElementById("placaInput").value="";}
-function limparTudo(){if(confirm("Deseja realmente limpar todos os dados?")){localStorage.clear();bancoCadastros=[];bancoHistorico=[];bancoAutorizados=[];salvarBanco();fecharPopup();document.getElementById("mensagem").innerHTML="";alert("Todos os dados foram limpos!");}}
-mostrarPagina('inicioContainer');salvarBanco();
-if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').then(()=>console.log('Service Worker registrado!')).catch(err=>console.log('Erro SW:',err));}
-
-<!-- LIMPAR TUDO (com senha) -->
-function limparTudo() {
-  let senha = prompt("Digite a senha para limpar os dados:");
-  if (senha === "1234") {
-    if (confirm("Deseja realmente limpar todos os dados?")) {
-      localStorage.clear(); // limpa todos os dados do localStorage
-      bancoCadastros = [];
-      bancoHistorico = [];
-      bancoAutorizados = [];
-      salvarBanco();
-      fecharPopup();
-      document.getElementById("mensagem").innerHTML = "";
-      alert("Todos os dados foram limpos!");
-    }
-  } else if (senha !== null) {
-    alert("Senha incorreta ❌");
-  }
-}
-
-function exportarPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  // Pega a tabela de histórico
-  const tabela = document.getElementById("listaHistorico");
-  
-  if(tabela.innerHTML.trim() === "") {
-    alert("Não há dados para exportar!");
-    return;
-  }
-
-  let y = 20; // posição vertical inicial
-  doc.setFontSize(14);
-  doc.text("Histórico de Placas", 105, 15, null, null, "center");
-
-  // Cria um array com os dados da tabela
-  let linhas = [];
-  const rows = tabela.querySelectorAll(".item"); // cada item é uma linha
-  rows.forEach((row) => {
-    linhas.push(row.innerText.split("\t").join(" | ")); // separa campos
-  });
-
-  doc.setFontSize(12);
-  linhas.forEach((linha, index) => {
-    doc.text(linha, 10, y);
-    y += 8;
-    if(y > 280) { // cria nova página se passar do limite
-      doc.addPage();
-      y = 20;
-    }
-  });
-
-  doc.save("historico.pdf");
-}
-
-function enviarEmail() {
-  const emailParams = {
-    to_email: "leomatos3914@gmail.com", // campo do template
-    message: "Olá! Aqui está a mensagem enviada pelo sistema.", // campo do template
-  };
-
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", emailParams)
-    .then(() => {
-      alert("E-mail enviado com sucesso!");
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Erro ao enviar e-mail.");
-    });
-}
-
-
-</script>
+<!-- script principal -->
+<script src="script.js"></script>
 </body>
 </html>
