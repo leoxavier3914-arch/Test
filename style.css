@@ -23,3 +23,58 @@ th { background-color: #f2f2f2; }
 #popupCard { position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: white; padding: 25px 20px 20px 20px; width: 90%; max-width: 400px; border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); z-index: 1002; display: none; }
 #popupCard .fecharBtn { position: absolute; top: -10px; right: -120px; background: none; border: none; font-size: 26px; font-weight: bold; cursor: pointer; color: #f44336; }
 #exportBtn { background-color: #2196F3; }
+
+/* Lista de autorizados */
+#listaAutorizados {
+  margin-top: 20px;
+}
+
+/* Cada item da lista */
+#listaAutorizados .item {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left; /* Texto à esquerda */
+}
+
+/* Efeito ao passar o mouse */
+#listaAutorizados .item:hover {
+  background-color: #f0f0f0;
+}
+
+/* Item selecionado */
+#listaAutorizados .item.selecionado {
+  border: 2px solid #4CAF50; /* borda verde */
+  background-color: #e8f5e9; /* fundo levemente verde */
+}
+
+.botaoExcluir {
+  background-color: #f44336; /* vermelho */
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.botaoExcluir:hover {
+  background-color: #d32f2f; /* vermelho mais escuro ao passar o mouse */
+}
+
+.botaoEditar {
+  background-color: #2196F3; /* vermelho */
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.item.selecionado {
+  border: 2px solid #4CAF50;
+  border-radius: 5px;
+  background-color: #e0f7e0;
+}
