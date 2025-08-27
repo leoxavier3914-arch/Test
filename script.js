@@ -478,89 +478,52 @@ function checarExportacaoAutomaticaPDF() {
   console.log("Exportação automática em PDF realizada!");
 }
 
-
 // ===== EXPORTAÇÃO LOCALSTORAGE =====
-
-// Chave para salvar timestamp do último backup
-const LS_TIMESTAMP_KEY = "lastLSBackup";
-
-// Função que pega todos os dados do localStorage
 function exportLocalStorage() {
     return JSON.stringify({
-        bancoCadastros: bancoCadastros,
-        bancoHistorico: bancoHistorico,
-        bancoAutorizados: bancoAutorizados
+        bancoCadastros,
+        bancoHistorico,
+        bancoAutorizados
     });
 }
 
-// Força download do JSON como arquivo
 function downloadLS(filename = "backup_localstorage.json") {
-    const jsonDados = exportLocalStorage();
-    const blob = new Blob([jsonDados], { type: "application/json" });
+    const blob = new Blob([exportLocalStorage()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     a.click();
-
     URL.revokeObjectURL(url);
 }
 
-// Verifica se já passou 24h desde o último backup
-function verificarBackupAutomatico() {
-    const ultimoBackup = localStorage.getItem(LS_TIMESTAMP_KEY);
-    const agora = Date.now();
-
-    if (!ultimoBackup || agora - parseInt(ultimoBackup) >= 24 * 60 * 60 * 1000) {
-        downloadLS(); // exporta JSON
-        localStorage.setItem(LS_TIMESTAMP_KEY, agora.toString()); // atualiza timestamp
-        console.log("Backup automático realizado!");
-    }
-}
-
-// Chamar a verificação ao carregar a página
-window.addEventListener("load", verificarBackupAutomatico);
-
-// ===== BOTÃO PARA EXPORTAR MANUAL =====
+// ===== BOTÃO EXPORTAR =====
 function criarBotaoExportLS() {
-    const botaoExport = document.createElement("button");
-    botaoExport.textContent = "Exportar LS";
-    botaoExport.style = "padding:5px 10px; margin:5px; cursor:pointer; background:#2196F3; color:white; border:none; border-radius:5px;";
-    
-    botaoExport.addEventListener("click", () => {
+    const btn = document.createElement("button");
+    btn.textContent = "Exportar LS";
+    btn.style = "padding:5px 10px; margin:5px; cursor:pointer; background:#2196F3; color:white; border:none; border-radius:5px;";
+    btn.addEventListener("click", () => {
         downloadLS();
-        localStorage.setItem(LS_TIMESTAMP_KEY, Date.now().toString()); // reinicia contador 24h
-        alert("Backup exportado e contador de 24h reiniciado!");
+        localStorage.setItem("lastLSBackup", Date.now().toString());
+        alert("Backup exportado!");
     });
-
-    // Adiciona o botão no container de histórico
-    const container = document.getElementById("historicoContainer");
-    container.insertBefore(botaoExport, container.lastChild);
+    document.getElementById("historicoContainer").insertBefore(btn, null);
 }
-
-// Inicializa botão de exportação
 criarBotaoExportLS();
 
-
-// ===== BOTÃO PARA IMPORTAR LS =====
+// ===== BOTÃO IMPORTAR =====
 const importInput = document.createElement("input");
 importInput.type = "file";
 importInput.accept = ".json";
-importInput.style.display = "none"; // escondido
-document.body.appendChild(importInput); // precisa estar no DOM para funcionar
+importInput.style.display = "none";
+document.body.appendChild(importInput);
 
 const importBtn = document.createElement("button");
 importBtn.textContent = "Importar LS";
 importBtn.style = "padding:5px 10px; margin:5px; cursor:pointer;";
+document.getElementById("historicoContainer").appendChild(importBtn);
 
-// Adiciona ao final do histórico (lastChild)
-const historicoContainer = document.getElementById("historicoContainer");
-historicoContainer.appendChild(importBtn);
-
-importBtn.addEventListener("click", () => {
-    importInput.click(); // abre seletor de arquivo
-});
+importBtn.addEventListener("click", () => importInput.click());
 
 importInput.addEventListener("change", (event) => {
     const file = event.target.files[0];
@@ -570,30 +533,24 @@ importInput.addEventListener("change", (event) => {
     reader.onload = (e) => {
         try {
             const dados = JSON.parse(e.target.result);
-
-            // Verifica se as chaves obrigatórias existem
-            const chavesObrigatorias = ["bancoCadastros", "bancoHistorico", "bancoAutorizados"];
-            const valido = chavesObrigatorias.every(chave => dados.hasOwnProperty(chave));
-            if (!valido) {
-                alert("Arquivo inválido! Estrutura incorreta.");
+            const chaves = ["bancoCadastros","bancoHistorico","bancoAutorizados"];
+            if (!chaves.every(k => dados.hasOwnProperty(k))) {
+                alert("Arquivo inválido!");
                 return;
             }
 
-            // Armazena corretamente no localStorage
-            chavesObrigatorias.forEach(chave => {
-                localStorage.setItem(chave, JSON.stringify(dados[chave]));
-            });
-
-            alert("Backup importado com sucesso!");
-
-            // Atualiza arrays e telas
+            // Atualiza localStorage e arrays
+            chaves.forEach(k => localStorage.setItem(k, JSON.stringify(dados[k])));
             bancoCadastros = dados.bancoCadastros;
             bancoHistorico = dados.bancoHistorico;
             bancoAutorizados = dados.bancoAutorizados;
-            salvarBanco(); // atualiza todas as telas
+
+            salvarBanco(); // atualiza tela
+            alert("Backup importado com sucesso!");
+            importInput.value = ""; // permite reimportar mesmo arquivo
         } catch (err) {
             console.error(err);
-            alert("Erro ao importar arquivo. Verifique se é um backup válido.");
+            alert("Erro ao importar arquivo!");
         }
     };
     reader.readAsText(file);
