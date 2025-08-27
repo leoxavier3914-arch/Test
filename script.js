@@ -543,6 +543,56 @@ function criarBotaoExportLS() {
 criarBotaoExportLS();
 
 
+// ===== BOTÃO PARA IMPORTAR LS =====
+const importInput = document.createElement("input");
+importInput.type = "file";
+importInput.accept = ".json";
+importInput.style.display = "none"; // escondido
+document.body.appendChild(importInput); // precisa estar no DOM para funcionar
+
+const importBtn = document.createElement("button");
+importBtn.textContent = "Importar LS";
+importBtn.style = "padding:5px 10px; margin:5px; cursor:pointer;";
+
+// Adiciona ao final do histórico (lastChild)
+const historicoContainer = document.getElementById("historicoContainer");
+historicoContainer.appendChild(importBtn);
+
+importBtn.addEventListener("click", () => {
+    importInput.click(); // abre seletor de arquivo
+});
+
+importInput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const dados = JSON.parse(e.target.result);
+
+            // Coloca cada chave do JSON de volta no localStorage
+            for (const chave in dados) {
+                localStorage.setItem(chave, dados[chave]);
+            }
+
+            alert("Backup importado com sucesso!");
+
+            // Atualiza arrays e telas
+            bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
+            bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
+            bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
+            salvarBanco(); // atualiza telas
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao importar arquivo. Verifique se é um backup válido.");
+        }
+    };
+    reader.readAsText(file);
+});
+
+
+
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
 salvarBanco();
