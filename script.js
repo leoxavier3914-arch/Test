@@ -478,6 +478,71 @@ function checarExportacaoAutomaticaPDF() {
   console.log("Exportação automática em PDF realizada!");
 }
 
+
+// ===== EXPORTAÇÃO LOCALSTORAGE =====
+
+// Chave para salvar timestamp do último backup
+const LS_TIMESTAMP_KEY = "lastLSBackup";
+
+// Função que pega todos os dados do localStorage
+function exportLocalStorage() {
+    return JSON.stringify({
+        bancoCadastros: bancoCadastros,
+        bancoHistorico: bancoHistorico,
+        bancoAutorizados: bancoAutorizados
+    });
+}
+
+// Força download do JSON como arquivo
+function downloadLS(filename = "backup_localstorage.json") {
+    const jsonDados = exportLocalStorage();
+    const blob = new Blob([jsonDados], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+// Verifica se já passou 24h desde o último backup
+function verificarBackupAutomatico() {
+    const ultimoBackup = localStorage.getItem(LS_TIMESTAMP_KEY);
+    const agora = Date.now();
+
+    if (!ultimoBackup || agora - parseInt(ultimoBackup) >= 24 * 60 * 60 * 1000) {
+        downloadLS(); // exporta JSON
+        localStorage.setItem(LS_TIMESTAMP_KEY, agora.toString()); // atualiza timestamp
+        console.log("Backup automático realizado!");
+    }
+}
+
+// Chamar a verificação ao carregar a página
+window.addEventListener("load", verificarBackupAutomatico);
+
+// ===== BOTÃO PARA EXPORTAR MANUAL =====
+function criarBotaoExportLS() {
+    const botaoExport = document.createElement("button");
+    botaoExport.textContent = "Exportar LS";
+    botaoExport.style = "padding:5px 10px; margin:5px; cursor:pointer; background:#2196F3; color:white; border:none; border-radius:5px;";
+    
+    botaoExport.addEventListener("click", () => {
+        downloadLS();
+        localStorage.setItem(LS_TIMESTAMP_KEY, Date.now().toString()); // reinicia contador 24h
+        alert("Backup exportado e contador de 24h reiniciado!");
+    });
+
+    // Adiciona o botão no container de histórico
+    const container = document.getElementById("historicoContainer");
+    container.insertBefore(botaoExport, container.lastChild);
+}
+
+// Inicializa botão de exportação
+criarBotaoExportLS();
+
+
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
 salvarBanco();
