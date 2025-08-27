@@ -73,8 +73,57 @@ th { background-color: #f2f2f2; }
   cursor: pointer;
 }
 
+
+.item {
+  border-bottom:1px solid #ddd;
+  padding:8px;
+  text-align:left;
+  position: relative; /* adicionado aqui */
+}
+
+/* Item selecionado */
 .item.selecionado {
   border: 2px solid #4CAF50;
   border-radius: 5px;
   background-color: #e0f7e0;
+}
+
+.item .menuSerra {
+  display: none; /* esconde por padrão */
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.item.selecionado .menuSerra {
+  display: block; /* só aparece quando o item está selecionado */
+}
+
+/* Submenu escondido por padrão */
+/* Submenu escondido por padrão */
+.item .submenu {
+  display: none;
+  position: absolute;
+  top: 50%;                /* centraliza em relação à serrinha */
+  right: 14px;
+  transform: translateY(-50%); /* centraliza verticalmente */
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1000;           /* garante que fique acima de outros itens */
+  min-width: 100px;
+}
+
+/* Itens do submenu */
+.item .submenu div {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.item .submenu div:hover {
+  background-color: #f2f2f2;
 }
