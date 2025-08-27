@@ -571,18 +571,26 @@ importInput.addEventListener("change", (event) => {
         try {
             const dados = JSON.parse(e.target.result);
 
-            // Coloca cada chave do JSON de volta no localStorage
-            for (const chave in dados) {
-                localStorage.setItem(chave, dados[chave]);
+            // Verifica se as chaves obrigatórias existem
+            const chavesObrigatorias = ["bancoCadastros", "bancoHistorico", "bancoAutorizados"];
+            const valido = chavesObrigatorias.every(chave => dados.hasOwnProperty(chave));
+            if (!valido) {
+                alert("Arquivo inválido! Estrutura incorreta.");
+                return;
             }
+
+            // Armazena corretamente no localStorage
+            chavesObrigatorias.forEach(chave => {
+                localStorage.setItem(chave, JSON.stringify(dados[chave]));
+            });
 
             alert("Backup importado com sucesso!");
 
             // Atualiza arrays e telas
-            bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
-            bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
-            bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
-            salvarBanco(); // atualiza telas
+            bancoCadastros = dados.bancoCadastros;
+            bancoHistorico = dados.bancoHistorico;
+            bancoAutorizados = dados.bancoAutorizados;
+            salvarBanco(); // atualiza todas as telas
         } catch (err) {
             console.error(err);
             alert("Erro ao importar arquivo. Verifique se é um backup válido.");
@@ -590,7 +598,6 @@ importInput.addEventListener("change", (event) => {
     };
     reader.readAsText(file);
 });
-
 
 
 // ===== Inicialização =====
