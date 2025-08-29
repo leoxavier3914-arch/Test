@@ -635,8 +635,9 @@ function enviarHistoricoDiario() {
     console.log("✅ Histórico do dia enviado por e-mail.");
     marcarEnvio();
   }).catch(err => {
-    console.error("❌ Erro no envio do histórico:", err);
-  });
+  // mostra o erro direto na tela
+  alert("❌ Erro no envio: " + JSON.stringify(err));
+});
 }
 
 // Verificação ao abrir/recarregar o sistema
