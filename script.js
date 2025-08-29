@@ -595,6 +595,68 @@ importInput.addEventListener("change", (event) => {
 });
 
 
+// Horário configurado para envio (pode mudar aqui)
+const horaEnvio = 18;
+const minutoEnvio = 30;
+
+// Verifica se já enviou hoje
+function jaEnviouHoje() {
+  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
+  const hoje = formatarData(new Date());
+  return ultimoEnvio === hoje;
+}
+
+// Salva que já enviou hoje
+function marcarEnvio() {
+  const hoje = formatarData(new Date());
+  localStorage.setItem("ultimoEnvio", hoje);
+}
+
+function enviarHistoricoDiario() {
+  const hoje = formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === hoje);
+
+  if (filtered.length === 0) return; // nada pra enviar
+
+  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
+  filtered.forEach(item => {
+    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
+  });
+
+  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+    to_email: "empresa@exemplo.com",
+    message: mensagem
+  }).then(() => {
+    console.log("✅ Histórico do dia enviado por e-mail.");
+    marcarEnvio();
+  }).catch(err => {
+    console.error("❌ Erro no envio do histórico:", err);
+  });
+}
+
+// Verificação ao abrir/recarregar o sistema
+window.addEventListener("load", () => {
+  const agora = new Date();
+  if (
+    !jaEnviouHoje() &&
+    (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))
+  ) {
+    enviarHistoricoDiario();
+  }
+});
+
+// Agendamento automático se estiver aberto no horário
+setInterval(() => {
+  const agora = new Date();
+  if (
+    !jaEnviouHoje() &&
+    agora.getHours() === horaEnvio &&
+    agora.getMinutes() === minutoEnvio
+  ) {
+    enviarHistoricoDiario();
+  }
+}, 60000);
+
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
 salvarBanco();
