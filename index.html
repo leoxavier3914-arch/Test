@@ -9,11 +9,12 @@
   <link rel="stylesheet" href="style.css">
 
   <!-- EmailJS -->
-  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
-  <script>
-    // Inicializa EmailJS (mantive sua public key)
-    emailjs.init("vPVpXFO3k8QblVbqr");
-  </script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script type="text/javascript">
+  (function() {
+    emailjs.init("vPVpXFO3k8QblVbqr"); //  public key
+  })();
+</script>
 
   <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
