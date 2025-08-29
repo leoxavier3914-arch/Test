@@ -3,6 +3,9 @@ let bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
 let bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
 let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
 
+// Inicializa o EmailJS
+emailjs.init("vPVpXFO3k8QblVbqr"); // substitua pelo seu user ID do EmailJS
+
 function salvarBanco() {
   localStorage.setItem("bancoCadastros", JSON.stringify(bancoCadastros));
   localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
