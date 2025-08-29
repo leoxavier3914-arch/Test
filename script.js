@@ -628,7 +628,9 @@ function enviarHistoricoDiario() {
 
   emailjs.send("service_t9bocqh", "template_n4uw7xi", {
     to_email: "leomatos3914@gmail.com",
-    message: mensagem
+    message: mensagem,
+    title: teste,
+    name: leo
   }).then(() => {
     console.log("✅ Histórico do dia enviado por e-mail.");
     marcarEnvio();
