@@ -314,11 +314,33 @@ function exportarPDF() {
 }
 
 // ===== Enviar e-mail =====
+// ===== Enviar e-mail (Manual via Botão) =====
 function enviarEmail() {
-  const emailParams = { to_email: "leomatos3914@gmail.com", message: "Olá! Aqui está a mensagem enviada pelo sistema." };
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", emailParams)
-    .then(() => { alert("E-mail enviado com sucesso!"); })
-    .catch(err => { console.error(err); alert("Erro ao enviar e-mail."); });
+  const hoje = formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === hoje);
+
+  if (filtered.length === 0) {
+    alert("Nenhum histórico encontrado para hoje!");
+    return;
+  }
+
+  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
+  filtered.forEach(item => {
+    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
+  });
+
+  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+    to_email: "leomatos3914@gmail.com",
+    title: "Histórico Diário (Envio Manual)",
+    name: "Sistema de Placas",
+    message: mensagem
+  })
+  .then(() => {
+    alert("📧 Histórico enviado manualmente com sucesso!");
+  })
+  .catch(err => {
+    alert("❌ Erro ao enviar: " + JSON.stringify(err));
+  });
 }
 
 // ===== Entrada/Saída de placas =====
