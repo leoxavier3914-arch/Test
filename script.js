@@ -324,7 +324,12 @@ function verificarPlaca() {
   const placa = placaInput.value.toUpperCase();
   placaInput.value = placa;
 
-  if (placa.length !== 7) { alert("A placa deve ter exatamente 7 caracteres!"); placaInput.value = ""; placaInput.focus(); return; }
+  if (placa.length !== 7) { 
+    alert("A placa deve ter exatamente 7 caracteres!"); 
+    placaInput.value = ""; 
+    placaInput.focus(); 
+    return; 
+  }
 
   const autorizado = bancoAutorizados.find(i => i.placa === placa);
   if (autorizado) {
@@ -349,7 +354,13 @@ function verificarPlaca() {
         <p><b>Nome:</b> ${registro.nome}</p>
         <p><b>RG/CPF:</b> ${registro.rgcpf}</p>
         <p><b>Status:</b><span style="color:${cor}">${statusAtual}</span></p>
-        <button class="entrada" onclick="marcarEntrada('${placa}')">Entrada</button>
+        <label>Tipo:</label>
+        <select id="tipoEntrada">
+          <option value="Despacho" ${registro.tipo === "Despacho" ? "selected" : ""}>Despacho</option>
+          <option value="Retiro" ${registro.tipo === "Retiro" ? "selected" : ""}>Retiro</option>
+        </select>
+        <br><br>
+        <button class="entrada" onclick="marcarEntradaComTipo('${placa}')">Entrada</button>
         <button class="saida" onclick="marcarSaida('${placa}')">Saída</button>
       `);
     } else {
@@ -370,6 +381,33 @@ function verificarPlaca() {
   placaInput.value = "";
   placaInput.focus();
 }
+
+// Nova função para registrar entrada com tipo selecionado
+function marcarEntradaComTipo(placa) {
+  const tipoSelecionado = document.getElementById("tipoEntrada").value;
+  const existe = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
+  if (existe) { alert("Essa placa já está em andamento!"); return; }
+
+  const cadastro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
+  if (!cadastro) return;
+
+  const hoje = formatarData(new Date());
+  bancoHistorico.push({
+    nome: cadastro.nome,
+    placa: cadastro.placa,
+    rgcpf: cadastro.rgcpf,
+    tipo: tipoSelecionado,
+    status: "Em andamento",
+    data: hoje,
+    horarioEntrada: new Date().toLocaleTimeString(),
+    horarioSaida: ""
+  });
+
+  salvarBanco();
+  fecharPopup();
+  alert("Entrada registrada com sucesso! ✅");
+}
+
 
 function entradaNovaPlaca(placa) {
   const nome = document.getElementById("nomeInput").value;
