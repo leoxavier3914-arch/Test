@@ -96,37 +96,7 @@ async function gerarAnexoPDFHoje() {
   return { name: `historico-${dataHoje}.pdf`, data: pdfBase64 };
 }
 
-async function enviarEmailOntem() {
-  const hoje = new Date();
-  const dataHoje = formatarData(hoje);
-  const filtered = bancoHistorico.filter(i => i.data === dataHoje);
 
-  if (filtered.length === 0) {
-    alert("Nenhum histórico encontrado para hoje!");
-    return;
-  }
-
-  let mensagem = "📌 Histórico de Placas - " + dataHoje + "\n\n";
-  filtered.forEach(item => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
-  });
-
-  try {
-    const anexo = await gerarAnexoPDFHoje();
-    await Email.send({
-      SecureToken: SMTP_SECURE_TOKEN,
-      To: "leomatos3914@gmail.com",
-      From: SMTP_FROM,
-      Subject: "Histórico Diário (Envio Manual - PDF)",
-      Body: mensagem.replace(/\n/g, "<br>"),
-      Attachments: [anexo],
-    });
-    alert("📧 Histórico em PDF enviado com sucesso!");
-  } catch (err) {
-    alert("❌ Erro ao enviar: " + (err.message || err));
-    console.error(err);
-  }
-}
 
 /* ------------------------ Listagem de Cadastros UI ----------------------- */
 function atualizarCadastros() {
@@ -874,6 +844,38 @@ importInput.addEventListener("change", (event) => {
   };
   reader.readAsText(file);
 });
+
+async function gerarAnexoPDFOntem() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const dataOntem = formatarData(d);
+  const filtered = bancoHistorico.filter(i => i.data === dataOntem);
+
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas - " + dataOntem, 105, 15, null, null, "center");
+
+  let y = 25;
+  filtered.forEach(item => {
+    doc.setFontSize(12);
+    doc.text(
+      `Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Status: ${item.status} | Entrada: ${item.horarioEntrada || "-"} | Saída: ${item.horarioSaida || "-"}`,
+      10,
+      y
+    );
+    y += 8;
+    if (y > 280) { doc.addPage(); y = 20; }
+  });
+
+  const pdfBlob = doc.output("blob");
+  const pdfBase64 = await blobToBase64(pdfBlob);
+  return { name: `historico-${dataOntem}.pdf`, data: pdfBase64 };
+}
 
 /* ------------------------------- Inicialização --------------------------- */
 mostrarPagina("inicioContainer");
