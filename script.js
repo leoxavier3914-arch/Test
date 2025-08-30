@@ -767,15 +767,17 @@ function loadScript(src){
 async function ensureDocx(){
   if (window.docx) return window.docx;
   const cdns = [
-    'https://cdn.jsdelivr.net/npm/docx@6.1.5/build/index.js',
-    'https://unpkg.com/docx@6.1.5/build/index.js'
+    'https://cdn.jsdelivr.net/npm/docx@7.1.0/build/index.umd.js',
+    'https://unpkg.com/docx@7.1.0/build/index.umd.js'
   ];
   for (const url of cdns){
-    try { await loadScript(url); if (window.docx) return window.docx; } catch(_){}
+    try { 
+      await loadScript(url); 
+      if (window.docx) return window.docx; 
+    } catch(_){}
   }
   throw new Error('Biblioteca docx indisponível');
 }
-
 
 
 
