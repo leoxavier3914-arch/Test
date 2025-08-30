@@ -12,6 +12,15 @@
 </script>
 <!-- docx (para gerar o .docx no navegador) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.7.0/docx.umd.min.js"></script>
+
+<script>
+  if (window.docx) {
+    alert("✅ Biblioteca docx carregada!");
+  } else {
+    alert("❌ Biblioteca docx NÃO carregou!");
+  }
+</script>
+  
   <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
