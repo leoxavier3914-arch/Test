@@ -1,44 +1,78 @@
-// ===== Banco de dados local =====
-let bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
-let bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
+/* ======================================================================
+   CONTROLE DE PLACAS – SCRIPT PRINCIPAL
+   ====================================================================== */
+
+/* ----------------------------- Bancos locais ----------------------------- */
+let bancoCadastros   = JSON.parse(localStorage.getItem("bancoCadastros"))   || [];
+let bancoHistorico   = JSON.parse(localStorage.getItem("bancoHistorico"))   || [];
 let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
 
-// ===== Configuração SMTP.js =====
-const SMTP_SECURE_TOKEN = "2e238640-c22d-48d3-9fd1-bddbed05de92"; // gerado no smtpjs.com
-const SMTP_FROM = "histplacas@gmail.com";  // email usado no token
+/* Seleções em listas (UI) */
+let cadastroSelecionado   = null;
+let autorizadoSelecionado = null;
 
-// Converte Blob -> Base64 (para anexar no e-mail)
+/* --------------------------- SMTP.js (Email.send) ------------------------ */
+const SMTP_SECURE_TOKEN = "2e238640-c22d-48d3-9fd1-bddbed05de92"; // token do smtpjs.com
+const SMTP_FROM         = "histplacas@gmail.com";                 // e-mail do token
+
+/* ------------------------- Util: Blob -> Base64 -------------------------- */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result.split(',')[1];
-      resolve(base64);
-    };
+    reader.onloadend = () => resolve(reader.result.split(",")[1]);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
 }
 
-// Gera DOCX de HOJE
+/* ------------------- Garantir que a lib DOCX esteja ok ------------------- */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Falha ao carregar: " + src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureDocx() {
+  if (window.docx) return window.docx;
+  const cdns = [
+    "https://cdn.jsdelivr.net/npm/docx@6.1.5/build/index.js",
+    "https://unpkg.com/docx@6.1.5/build/index.js",
+  ];
+  for (const url of cdns) {
+    try {
+      await loadScript(url);
+      if (window.docx) return window.docx;
+    } catch (_) {}
+  }
+  throw new Error("Biblioteca docx indisponível");
+}
+
+/* ---------------------- Geração de DOCX (hoje/ontem) --------------------- */
 async function gerarAnexoWordHoje() {
   const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
 
   const hoje = new Date();
   const dataHoje = formatarData(hoje);
-  const filtered = bancoHistorico.filter(item => item.data === dataHoje);
+  const filtered = bancoHistorico.filter((i) => i.data === dataHoje);
 
   let children = [];
   if (filtered.length === 0) {
-    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para hoje.") ] }));
+    children.push(
+      new Paragraph({ children: [new TextRun("Nenhum histórico encontrado para hoje.")] })
+    );
   } else {
-    children = filtered.map(item =>
+    children = filtered.map((item) =>
       new Paragraph({
-        children: [ new TextRun(
-          `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-          `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-          `⏱ Saída: ${item.horarioSaida || "-"}`
-        ) ]
+        children: [
+          new TextRun(
+            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
+              `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
+              `⏱ Saída: ${item.horarioSaida || "-"}`
+          ),
+        ],
       })
     );
   }
@@ -49,25 +83,29 @@ async function gerarAnexoWordHoje() {
   return { name: `historico-${dataHoje}.docx`, data: base64 };
 }
 
-// Gera DOCX de ONTEM
 async function gerarAnexoWordOntem() {
   const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
 
-  const ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
-  const dataOntem = formatarData(ontem);
-  const filtered = bancoHistorico.filter(item => item.data === dataOntem);
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const dataOntem = formatarData(d);
+  const filtered = bancoHistorico.filter((i) => i.data === dataOntem);
 
   let children = [];
   if (filtered.length === 0) {
-    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para ontem.") ] }));
+    children.push(
+      new Paragraph({ children: [new TextRun("Nenhum histórico encontrado para ontem.")] })
+    );
   } else {
-    children = filtered.map(item =>
+    children = filtered.map((item) =>
       new Paragraph({
-        children: [ new TextRun(
-          `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-          `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-          `⏱ Saída: ${item.horarioSaida || "-"}`
-        ) ]
+        children: [
+          new TextRun(
+            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
+              `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
+              `⏱ Saída: ${item.horarioSaida || "-"}`
+          ),
+        ],
       })
     );
   }
@@ -78,7 +116,7 @@ async function gerarAnexoWordOntem() {
   return { name: `historico-${dataOntem}.docx`, data: base64 };
 }
 
-
+/* ------------------------- Persistência e telas -------------------------- */
 function salvarBanco() {
   localStorage.setItem("bancoCadastros", JSON.stringify(bancoCadastros));
   localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
@@ -88,18 +126,19 @@ function salvarBanco() {
   atualizarAutorizados();
 }
 
-// ===== AtualizaÃ§Ã£o de listas =====
+/* ------------------------ Listagem de Cadastros UI ----------------------- */
 function atualizarCadastros() {
   const listaDiv = document.getElementById("listaCadastros");
+  if (!listaDiv) return;
   listaDiv.innerHTML = "";
-  cadastroSelecionado = null; // limpa seleÃ§Ã£o ao atualizar
+  cadastroSelecionado = null;
 
   bancoCadastros.forEach((item, index) => {
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
       <span><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}</span>
-      <span class="menuSerra">â‹®
+      <span class="menuSerra" title="Mais ações">⋮
         <div class="submenu" style="display:none">
           <div onclick="editarCadastro(${index})">Editar</div>
           <div onclick="excluirCadastro(${index})">Excluir</div>
@@ -114,35 +153,27 @@ function atualizarCadastros() {
     };
 
     const serrinha = div.querySelector(".menuSerra");
-serrinha.addEventListener("click", (e) => {
-  e.stopPropagation(); // nÃ£o ativa seleÃ§Ã£o do item
-
-  const submenu = serrinha.querySelector(".submenu");
-  const isVisible = submenu.style.display === "block"; // verifica antes de fechar outros
-
-  // Fecha todos os submenus
-  document.querySelectorAll(".submenu").forEach(s => s.style.display = "none");
-
-  // Se estava aberto, fecha; se estava fechado, abre
-  submenu.style.display = isVisible ? "none" : "block";
-});
+    serrinha.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const submenu = serrinha.querySelector(".submenu");
+      const isVisible = submenu.style.display === "block";
+      document.querySelectorAll(".submenu").forEach((s) => (s.style.display = "none"));
+      submenu.style.display = isVisible ? "none" : "block";
+    });
 
     listaDiv.appendChild(div);
   });
 }
-
 function selecionarCadastro(index) {
   const itens = document.querySelectorAll("#listaCadastros .item");
   const clicado = itens[index];
 
   if (clicado.classList.contains("selecionado")) {
-    // Se ja  estava selecionado, desmarcar e esconder serrinha/submenu
     clicado.classList.remove("selecionado");
     const submenu = clicado.querySelector(".submenu");
     if (submenu) submenu.style.display = "none";
     cadastroSelecionado = null;
   } else {
-    // Marca o item clicado e desmarca os outros
     itens.forEach((el, i) => {
       if (i === index) {
         el.classList.add("selecionado");
@@ -156,47 +187,10 @@ function selecionarCadastro(index) {
   }
 }
 
-
-
-
+/* ----------------------- Lista de Autorizados (UI) ----------------------- */
 function atualizarAutorizados() {
   const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    listaDiv.innerHTML += `
-      <div class="item">
-        <input type="radio" name="selecionadoAut" value="${index}" id="aut${index}">
-        <label for="aut${index}"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</label>
-      </div>
-    `;
-  });
-}
-
-function atualizarTabelaAndamento() {
-  const tbody = document.getElementById("tabelaAndamento");
-  tbody.innerHTML = "";
-  bancoHistorico.filter(h => h.status === "Em andamento").forEach(h => {
-    tbody.innerHTML += `<tr><td>${h.placa}</td><td>${h.nome}</td><td class="horaEntrada">${h.horarioEntrada}</td><td><button class="saida" onclick="marcarSaida('${h.placa}')">SaÃ­da</button></td></tr>`;
-  });
-}
-
-// ===== Adicionar autorizado =====
-function adicionarAutorizado() {
-  const nome = document.getElementById("nomeAutInput").value;
-  const placa = document.getElementById("placaAutInput").value;
-  const rgcpf = document.getElementById("rgcpfAutInput").value;
-  if (!nome || !placa || !rgcpf) { alert("Preencha todos os campos!"); return; }
-  bancoAutorizados.push({ nome, placa, rgcpf });
-  salvarBanco();
-  document.getElementById("nomeAutInput").value = "";
-  document.getElementById("placaAutInput").value = "";
-  document.getElementById("rgcpfAutInput").value = "";
-  alert("Autorizado cadastrado com sucesso!");
-}
-
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
+  if (!listaDiv) return;
   listaDiv.innerHTML = "";
 
   bancoAutorizados.forEach((item, index) => {
@@ -207,22 +201,6 @@ function atualizarAutorizados() {
     listaDiv.appendChild(div);
   });
 }
-
-let autorizadoSelecionado = null;
-
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
-    div.onclick = () => selecionarAutorizado(index);
-    listaDiv.appendChild(div);
-  });
-}
-
 function selecionarAutorizado(index) {
   const itens = document.querySelectorAll("#listaAutorizados .item");
   itens.forEach((el, i) => {
@@ -235,87 +213,101 @@ function selecionarAutorizado(index) {
   });
 }
 
-// ===== Editar autorizado =====
+/* ------------------- CRUD de Autorizados (editar/excluir) ---------------- */
+function adicionarAutorizado() {
+  const nome  = document.getElementById("nomeAutInput").value.trim();
+  const placa = (document.getElementById("placaAutInput").value || "").toUpperCase().trim();
+  const rgcpf = document.getElementById("rgcpfAutInput").value.trim();
+
+  if (!nome || !placa || !rgcpf) {
+    alert("Preencha todos os campos!");
+    return;
+  }
+  bancoAutorizados.push({ nome, placa, rgcpf });
+  salvarBanco();
+
+  document.getElementById("nomeAutInput").value = "";
+  document.getElementById("placaAutInput").value = "";
+  document.getElementById("rgcpfAutInput").value = "";
+  alert("Autorizado cadastrado com sucesso!");
+}
+
 function iniciarEdicaoAut() {
   if (autorizadoSelecionado === null) {
     alert("Selecione um autorizado para editar!");
     return;
   }
-  const index = autorizadoSelecionado;
-  const item = bancoAutorizados[index];
-
+  const item = bancoAutorizados[autorizadoSelecionado];
   mostrarPopup(`
     <h3>Editar Autorizado</h3>
     <input type="text" id="editNome" value="${item.nome}" placeholder="Nome">
     <input type="text" id="editPlaca" value="${item.placa}" placeholder="Placa">
     <input type="text" id="editRgcpf" value="${item.rgcpf}" placeholder="RG/CPF">
-    <button class="entrada" onclick="confirmarEdicaoAut(${index})">Confirmar</button>
+    <button class="entrada" onclick="confirmarEdicaoAut(${autorizadoSelecionado})">Confirmar</button>
   `);
 }
-
 function confirmarEdicaoAut(index) {
-  const nome = document.getElementById("editNome").value;
-  const placa = document.getElementById("editPlaca").value;
-  const rgcpf = document.getElementById("editRgcpf").value;
+  const nome  = document.getElementById("editNome").value.trim();
+  const placa = (document.getElementById("editPlaca").value || "").toUpperCase().trim();
+  const rgcpf = document.getElementById("editRgcpf").value.trim();
 
-  if (!nome || !placa || !rgcpf) { alert("Preencha todos os campos!"); return; }
+  if (!nome || !placa || !rgcpf) {
+    alert("Preencha todos os campos!");
+    return;
+  }
 
   bancoAutorizados[index] = { nome, placa, rgcpf };
   salvarBanco();
   fecharPopup();
   alert("Autorizado editado com sucesso!");
 
-  // Deseleciona o autorizado editado
-  const itens = document.querySelectorAll("#listaAutorizados .item");
-  itens.forEach(el => el.classList.remove("selecionado"));
+  document.querySelectorAll("#listaAutorizados .item").forEach((el) => el.classList.remove("selecionado"));
   autorizadoSelecionado = null;
 }
-
-// ===== Excluir autorizado =====
 function iniciarExclusaoAut() {
   if (autorizadoSelecionado === null) {
     alert("Selecione um autorizado para excluir!");
     return;
   }
   const index = autorizadoSelecionado;
-
   if (confirm(`Deseja realmente excluir ${bancoAutorizados[index].nome}?`)) {
     bancoAutorizados.splice(index, 1);
-    autorizadoSelecionado = null; // limpa seleÃ§Ã£o
+    autorizadoSelecionado = null;
     salvarBanco();
-    alert("Autorizado excluÃ­do com sucesso!");
+    alert("Autorizado excluído com sucesso!");
   }
 }
 
+/* ----------------------- CRUD de Cadastros (lista) ----------------------- */
 function editarCadastro(index) {
   const item = bancoCadastros[index];
   mostrarPopup(`
     <h3>Editar Cadastro</h3>
-    <input type="text" id="editNomeCad" value="${item.nome}" placeholder="Nome">
+    <input type="text" id="editNomeCad"  value="${item.nome}"  placeholder="Nome">
     <input type="text" id="editPlacaCad" value="${item.placa}" placeholder="Placa">
     <input type="text" id="editRgcpfCad" value="${item.rgcpf}" placeholder="RG/CPF">
     <select id="editTipoCad">
       <option value="Despacho" ${item.tipo === "Despacho" ? "selected" : ""}>Despacho</option>
-      <option value="Retiro" ${item.tipo === "Retiro" ? "selected" : ""}>Retiro</option>
+      <option value="Retiro"   ${item.tipo === "Retiro"   ? "selected" : ""}>Retiro</option>
     </select>
     <button class="entrada" onclick="confirmarEdicaoCad(${index})">Confirmar</button>
   `);
 }
-
 function confirmarEdicaoCad(index) {
-  const nome = document.getElementById("editNomeCad").value;
-  const placa = document.getElementById("editPlacaCad").value;
-  const rgcpf = document.getElementById("editRgcpfCad").value;
-  const tipo = document.getElementById("editTipoCad").value;
+  const nome  = document.getElementById("editNomeCad").value.trim();
+  const placa = (document.getElementById("editPlacaCad").value || "").toUpperCase().trim();
+  const rgcpf = document.getElementById("editRgcpfCad").value.trim();
+  const tipo  = document.getElementById("editTipoCad").value;
 
-  if (!nome || !placa || !rgcpf || !tipo) { alert("Preencha todos os campos!"); return; }
-
+  if (!nome || !placa || !rgcpf || !tipo) {
+    alert("Preencha todos os campos!");
+    return;
+  }
   bancoCadastros[index] = { nome, placa, rgcpf, tipo };
   salvarBanco();
   fecharPopup();
   cadastroSelecionado = null;
 }
-
 function excluirCadastro(index) {
   if (confirm(`Deseja realmente excluir ${bancoCadastros[index].nome}?`)) {
     bancoCadastros.splice(index, 1);
@@ -324,37 +316,63 @@ function excluirCadastro(index) {
   }
 }
 
-// ===== Função de data =====
-function formatarData(d) { const dia = String(d.getDate()).padStart(2, '0'); const mes = String(d.getMonth() + 1).padStart(2, '0'); return `${dia}/${mes}/${d.getFullYear()}`; }
-function converterDataInput(input) { const p = input.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
+/* -------------------------- Datas e conversões --------------------------- */
+function formatarData(d) {
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}/${d.getFullYear()}`;
+}
+function converterDataInput(input) {
+  const p = input.split("-");
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
 
-// ===== Historico =====
+/* --------------------------- Histórico (tela) ---------------------------- */
 function filtrarHistorico() {
   const input = document.getElementById("dataFiltro").value;
   const dataFiltro = input ? converterDataInput(input) : formatarData(new Date());
   const listaDiv = document.getElementById("listaHistorico");
+  if (!listaDiv) return;
+
   listaDiv.innerHTML = "";
-  bancoHistorico.filter(i => i.data === dataFiltro).forEach(item => {
-    let cor = item.status === "Em andamento" ? "red" : item.status === "Finalizado" ? "green" : "black";
-    listaDiv.innerHTML += `<div class="item"><b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}<br>Data:${item.data}<br>Status:<span style="color:${cor}">${item.status}</span><br>Entrada:<span class="horaEntrada">${item.horarioEntrada || "-"}</span>|SaÃ­da:<span class="horaSaida">${item.horarioSaida || "-"}</span></div>`;
-  });
+  bancoHistorico
+    .filter((i) => i.data === dataFiltro)
+    .forEach((item) => {
+      let cor =
+        item.status === "Em andamento"
+          ? "red"
+          : item.status === "Finalizado"
+          ? "green"
+          : "black";
+      listaDiv.innerHTML += `
+        <div class="item">
+          <b>${item.placa}</b> - ${item.nome} [${item.tipo}] - RG/CPF: ${item.rgcpf}
+          <br>Data: ${item.data}
+          <br>Status: <span style="color:${cor}">${item.status}</span>
+          <br>Entrada: <span class="horaEntrada">${item.horarioEntrada || "-"}</span>
+          | Saída: <span class="horaSaida">${item.horarioSaida || "-"}</span>
+        </div>`;
+    });
 }
 
-// ===== Exportaçao CSV =====
+/* ------------------------------- CSV/PDF -------------------------------- */
 function exportarCSV() {
   const dataFiltro = document.getElementById("dataFiltro").value;
   const dataTexto = dataFiltro ? converterDataInput(dataFiltro) : formatarData(new Date());
-  const filtered = bancoHistorico.filter(item => item.data === dataTexto);
-  if (filtered.length === 0) { alert("Nenhum dado para exportar."); return; }
+  const filtered = bancoHistorico.filter((i) => i.data === dataTexto);
+  if (filtered.length === 0) {
+    alert("Nenhum dado para exportar.");
+    return;
+  }
 
-  let csv = "Placa,Nome,Tipo,RG/CPF,Data,Status,Entrada,SaÃ­da\n";
-  filtered.forEach(item => {
-    csv += `${item.placa},${item.nome},${item.tipo},${item.rgcpf},${item.data},${item.status},${item.horarioEntrada || '-'},${item.horarioSaida || '-'}\n`;
+  let csv = "Placa,Nome,Tipo,RG/CPF,Data,Status,Entrada,Saída\n";
+  filtered.forEach((item) => {
+    csv += `${item.placa},${item.nome},${item.tipo},${item.rgcpf},${item.data},${item.status},${item.horarioEntrada || "-"},${item.horarioSaida || "-"}\n`;
   });
 
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = `historico-${dataTexto}.csv`;
   a.click();
@@ -362,16 +380,22 @@ function exportarCSV() {
   alert("Exportado com sucesso!");
 }
 
-// ===== Exportaçao PDF =====
 function exportarPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert("Biblioteca jsPDF não encontrada na página.");
+    return;
+  }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
   const tabela = document.getElementById("listaHistorico");
-  if (tabela.innerHTML.trim() === "") { alert("NÃ£o hÃ¡ dados para exportar!"); return; }
+  if (!tabela || tabela.innerHTML.trim() === "") {
+    alert("Não há dados para exportar!");
+    return;
+  }
 
   doc.setFontSize(14);
-  doc.text("HistÃ³rico de Placas", 105, 15, null, null, "center");
+  doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
   let y = 20;
   const rows = tabela.querySelectorAll(".item");
@@ -379,64 +403,84 @@ function exportarPDF() {
     doc.setFontSize(12);
     doc.text(row.innerText.split("\n").join(" | "), 10, y);
     y += 8;
-    if (y > 280) { doc.addPage(); y = 20; }
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
   });
 
   const dataHoje = new Date().toISOString().split("T")[0];
   doc.save(`historico-${dataHoje}.pdf`);
 }
 
+/* --------- Andamento (tabela de “em andamento” + botão de saída) -------- */
+function atualizarTabelaAndamento() {
+  const tbody = document.getElementById("tabelaAndamento");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  bancoHistorico
+    .filter((h) => h.status === "Em andamento")
+    .forEach((h) => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${h.placa}</td>
+          <td>${h.nome}</td>
+          <td class="horaEntrada">${h.horarioEntrada}</td>
+          <td><button class="saida" onclick="marcarSaida('${h.placa}')">Saída</button></td>
+        </tr>`;
+    });
+}
 
-
-// ===== Entrada/Saida de placas =====
+/* ----------------------- Entrada/Saída (verificação) --------------------- */
 function verificarPlaca() {
   const placaInput = document.getElementById("placaInput");
-  const placa = placaInput.value.toUpperCase();
+  const placa = (placaInput.value || "").toUpperCase().trim();
   placaInput.value = placa;
 
-  if (placa.length !== 7) { 
-    alert("A placa deve ter exatamente 7 caracteres!"); 
-    placaInput.value = ""; 
-    placaInput.focus(); 
-    return; 
+  if (placa.length !== 7) {
+    alert("A placa deve ter exatamente 7 caracteres!");
+    placaInput.value = "";
+    placaInput.focus();
+    return;
   }
 
-  const autorizado = bancoAutorizados.find(i => i.placa === placa);
+  const autorizado = bancoAutorizados.find((i) => i.placa === placa);
   if (autorizado) {
     mostrarPopup(`
-      <h3>AUTORIZADO âœ…</h3>
+      <h3>AUTORIZADO ✅</h3>
       <p><b>Nome:</b> ${autorizado.nome}</p>
       <p><b>Placa:</b> ${autorizado.placa}</p>
-      <p><b>Modelo:</b> ${autorizado.modelo || '-'}</p>
-      <p><b>Cor:</b> ${autorizado.cor || '-'}</p>
+      <p><b>Modelo:</b> ${autorizado.modelo || "-"}</p>
+      <p><b>Cor:</b> ${autorizado.cor || "-"}</p>
       <button class="entrada" onclick="fecharPopup()">OK</button>
     `);
   } else {
-    const registro = bancoCadastros.find(i => i.placa === placa);
-    const ultimoHistorico = [...bancoHistorico].reverse().find(h => h.placa === placa);
+    const registro = bancoCadastros.find((i) => i.placa === placa);
+    const ultimoHistorico = [...bancoHistorico].reverse().find((h) => h.placa === placa);
     const statusAtual = ultimoHistorico ? ultimoHistorico.status : "-";
-    const cor = statusAtual === "Em andamento" ? "red" : statusAtual === "Finalizado" ? "green" : "black";
+    const cor =
+      statusAtual === "Em andamento" ? "red" : statusAtual === "Finalizado" ? "green" : "black";
 
     if (registro) {
       mostrarPopup(`
-        <h3>Placa encontrada âœ…</h3>
+        <h3>Placa encontrada ✅</h3>
         <p><b>Placa:</b> ${placa}</p>
         <p><b>Nome:</b> ${registro.nome}</p>
         <p><b>RG/CPF:</b> ${registro.rgcpf}</p>
-        <p><b>Status:</b><span style="color:${cor}">${statusAtual}</span></p>
+        <p><b>Status:</b> <span style="color:${cor}">${statusAtual}</span></p>
         <label>Tipo:</label>
         <select id="tipoEntrada">
           <option value="Despacho" ${registro.tipo === "Despacho" ? "selected" : ""}>Despacho</option>
-          <option value="Retiro" ${registro.tipo === "Retiro" ? "selected" : ""}>Retiro</option>
+          <option value="Retiro"   ${registro.tipo === "Retiro"   ? "selected" : ""}>Retiro</option>
         </select>
         <br><br>
         <button class="entrada" onclick="marcarEntradaComTipo('${placa}')">Entrada</button>
-        <button class="saida" onclick="marcarSaida('${placa}')">Saida</button>
+        <button class="saida"   onclick="marcarSaida('${placa}')">Saída</button>
       `);
     } else {
       mostrarPopup(`
-        <h3>Placa nÃ£o registrada âš ï¸</h3>
-        <input type="text" id="nomeInput" placeholder="Nome">
+        <h3>Placa não registrada ⚠️</h3>
+        <input type="text" id="nomeInput"  placeholder="Nome">
         <input type="text" id="rgcpfInput" placeholder="RG/CPF">
         <select id="tipoInput">
           <option value="" disabled selected>Tipo:</option>
@@ -452,13 +496,19 @@ function verificarPlaca() {
   placaInput.focus();
 }
 
-// Nova funÃ§Ã£o para registrar entrada com tipo selecionado
 function marcarEntradaComTipo(placa) {
   const tipoSelecionado = document.getElementById("tipoEntrada").value;
-  const existe = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
-  if (existe) { alert("Essa placa jÃ¡ estÃ¡ em andamento!"); return; }
+  const existe = [...bancoHistorico]
+    .reverse()
+    .find((h) => h.placa === placa && h.status === "Em andamento");
+  if (existe) {
+    alert("Essa placa já está em andamento!");
+    return;
+  }
 
-  const cadastro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
+  const cadastro =
+    bancoCadastros.find((i) => i.placa === placa) ||
+    bancoAutorizados.find((i) => i.placa === placa);
   if (!cadastro) return;
 
   const hoje = formatarData(new Date());
@@ -470,125 +520,189 @@ function marcarEntradaComTipo(placa) {
     status: "Em andamento",
     data: hoje,
     horarioEntrada: new Date().toLocaleTimeString(),
-    horarioSaida: ""
+    horarioSaida: "",
   });
 
   salvarBanco();
   fecharPopup();
-  alert("Entrada registrada com sucesso! âœ…");
+  alert("Entrada registrada com sucesso! ✅");
 }
 
-
 function entradaNovaPlaca(placa) {
-  const nome = document.getElementById("nomeInput").value;
-  const rgcpf = document.getElementById("rgcpfInput").value;
+  const nome = document.getElementById("nomeInput").value.trim();
+  const rgcpf = document.getElementById("rgcpfInput").value.trim();
   const tipo = document.getElementById("tipoInput").value;
-  if (!nome || !rgcpf || !tipo || !placa) { alert("Preencha todos os campos!"); return; }
+
+  if (!nome || !rgcpf || !tipo || !placa) {
+    alert("Preencha todos os campos!");
+    return;
+  }
   const hoje = formatarData(new Date());
+
   bancoCadastros.push({ nome, placa, rgcpf, tipo });
-  bancoHistorico.push({ nome, placa, rgcpf, tipo, status: "Em andamento", data: hoje, horarioEntrada: new Date().toLocaleTimeString(), horarioSaida: "" });
-  salvarBanco(); fecharPopup(); alert("Entrada registrada com sucesso! âœ…");
+  bancoHistorico.push({
+    nome,
+    placa,
+    rgcpf,
+    tipo,
+    status: "Em andamento",
+    data: hoje,
+    horarioEntrada: new Date().toLocaleTimeString(),
+    horarioSaida: "",
+  });
+
+  salvarBanco();
+  fecharPopup();
+  alert("Entrada registrada com sucesso! ✅");
 }
 
 function marcarEntrada(placa) {
-  const existe = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
-  if (existe) { alert("Essa placa jÃ¡ estÃ¡ em andamento!"); return; }
-  const cadastro = bancoCadastros.find(i => i.placa === placa) || bancoAutorizados.find(i => i.placa === placa);
+  const existe = [...bancoHistorico]
+    .reverse()
+    .find((h) => h.placa === placa && h.status === "Em andamento");
+  if (existe) {
+    alert("Essa placa já está em andamento!");
+    return;
+  }
+  const cadastro =
+    bancoCadastros.find((i) => i.placa === placa) ||
+    bancoAutorizados.find((i) => i.placa === placa);
   if (!cadastro) return;
+
   const hoje = formatarData(new Date());
-  bancoHistorico.push({ nome: cadastro.nome, placa: cadastro.placa, rgcpf: cadastro.rgcpf, tipo: cadastro.tipo || "Autorizado", status: "Em andamento", data: hoje, horarioEntrada: new Date().toLocaleTimeString(), horarioSaida: "" });
-  salvarBanco(); fecharPopup();
+  bancoHistorico.push({
+    nome: cadastro.nome,
+    placa: cadastro.placa,
+    rgcpf: cadastro.rgcpf,
+    tipo: cadastro.tipo || "Autorizado",
+    status: "Em andamento",
+    data: hoje,
+    horarioEntrada: new Date().toLocaleTimeString(),
+    horarioSaida: "",
+  });
+  salvarBanco();
+  fecharPopup();
 }
 
 function marcarSaida(placa) {
-  const ultimo = [...bancoHistorico].reverse().find(h => h.placa === placa && h.status === "Em andamento");
+  const ultimo = [...bancoHistorico]
+    .reverse()
+    .find((h) => h.placa === placa && h.status === "Em andamento");
   if (!ultimo) return;
-  ultimo.status = "Finalizado"; ultimo.horarioSaida = new Date().toLocaleTimeString();
-  salvarBanco(); document.getElementById("mensagem").innerHTML = "SaÃ­da registrada com sucesso! âœ…";
-  setTimeout(() => { document.getElementById("mensagem").innerHTML = ""; }, 5000); fecharPopup();
+
+  ultimo.status = "Finalizado";
+  ultimo.horarioSaida = new Date().toLocaleTimeString();
+  salvarBanco();
+
+  const msg = document.getElementById("mensagem");
+  if (msg) {
+    msg.innerHTML = "Saída registrada com sucesso! ✅";
+    setTimeout(() => (msg.innerHTML = ""), 5000);
+  }
+  fecharPopup();
 }
 
-// ===== Popup e menu =====
-function mostrarPopup(c) {
-  document.getElementById("popupConteudo").innerHTML = c;
-  document.getElementById("overlay").style.display = "block";
-  document.getElementById("popupCard").style.display = "block";
-}
+/* --------------------------- Popup e navegação --------------------------- */
+function mostrarPopup(html) {
+  const conteudo = document.getElementById("popupConteudo");
+  const overlay  = document.getElementById("overlay");
+  const card     = document.getElementById("popupCard");
+  if (!conteudo || !overlay || !card) return;
 
+  conteudo.innerHTML = html;
+  overlay.style.display = "block";
+  card.style.display = "block";
+}
 function fecharPopup() {
-  document.getElementById("overlay").style.display = "none";
-  document.getElementById("popupCard").style.display = "none";
+  const overlay = document.getElementById("overlay");
+  const card    = document.getElementById("popupCard");
+  if (!overlay || !card) return;
+  overlay.style.display = "none";
+  card.style.display = "none";
 }
+function toggleMenu() {
+  const menu = document.getElementById("menu");
+  if (menu) menu.classList.toggle("menu-open");
+}
+function mostrarPagina(id) {
+  ["inicioContainer", "cadastroContainer", "autorizadosContainer", "historicoContainer"].forEach(
+    (el) => {
+      const node = document.getElementById(el);
+      if (node) node.style.display = "none";
+    }
+  );
+  const alvo = document.getElementById(id);
+  if (alvo) alvo.style.display = "block";
 
-function toggleMenu() { document.getElementById("menu").classList.toggle("menu-open"); }
-function mostrarPagina(p) {
-  ["inicioContainer","cadastroContainer","autorizadosContainer","historicoContainer"].forEach(id => document.getElementById(id).style.display = "none");
-  document.getElementById(p).style.display = "block";
-  if(p==='historicoContainer'&&!document.getElementById("dataFiltro").value){
+  if (id === "historicoContainer" && !document.getElementById("dataFiltro").value) {
     const hoje = new Date();
-    document.getElementById("dataFiltro").value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+    document.getElementById("dataFiltro").value = `${hoje.getFullYear()}-${String(
+      hoje.getMonth() + 1
+    ).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
     filtrarHistorico();
   }
 }
 
-// ===== Limpar historico com senha =====
+/* --------------------- Limpar histórico (com senha) ---------------------- */
 function limparTudo() {
   let senha = prompt("Digite a senha para limpar os dados:");
   if (senha === "1234") {
-    if (confirm("Deseja realmente limpar o histÃ³rico e mensagens?")) {
+    if (confirm("Deseja realmente limpar o histórico e mensagens?")) {
       bancoHistorico = [];
       localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
-      document.getElementById("mensagem").innerHTML = "";
+      const msg = document.getElementById("mensagem");
+      if (msg) msg.innerHTML = "";
       atualizarTabelaAndamento();
       filtrarHistorico();
-      alert("HistÃ³rico e mensagens foram limpos!");
+      alert("Histórico e mensagens foram limpos!");
     }
-  } else if (senha !== null) { alert("Senha incorreta âŒ"); }
+  } else if (senha !== null) {
+    alert("Senha incorreta ❌");
+  }
 }
 
-
-
-// Botão para enviar manualmente o histórico de HOJE
-async function enviarEmailOntem() { // mantém o nome da função igual
+/* ------------------- Envio por e-mail (manual/automático) ---------------- */
+async function enviarEmailOntem() {
+  // nome mantido, mas envia HOJE
   const hoje = new Date();
   const dataHoje = formatarData(hoje);
-  const filtered = bancoHistorico.filter(item => item.data === dataHoje);
+  const filtered = bancoHistorico.filter((i) => i.data === dataHoje);
   if (filtered.length === 0) {
     alert("Nenhum histórico encontrado para hoje!");
     return;
   }
 
   let mensagem = "📌 Histórico de Placas - " + dataHoje + "\n\n";
-  filtered.forEach(item => {
+  filtered.forEach((item) => {
     mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
   });
 
   try {
-    const anexo = await gerarAnexoWordHoje(); // usa a função de HOJE
+    const anexo = await gerarAnexoWordHoje();
     await Email.send({
       SecureToken: SMTP_SECURE_TOKEN,
       To: "leomatos3914@gmail.com",
       From: SMTP_FROM,
       Subject: "Histórico Diário (Envio Manual de Hoje)",
       Body: mensagem.replace(/\n/g, "<br>"),
-      Attachments: [anexo]
+      Attachments: [anexo],
     });
     alert("📧 Histórico de hoje enviado manualmente com sucesso!");
   } catch (err) {
-    alert("❌ Erro ao enviar: " + err.message);
+    alert("❌ Erro ao enviar: " + (err && err.message ? err.message : err));
   }
 }
-// Envia histórico do dia anterior por e-mail automatico
-async function enviarHistoricoDiaAnterior() {
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
-  const dataOntem = formatarData(ontem);
 
-  const filtered = bancoHistorico.filter(item => item.data === dataOntem);
+async function enviarHistoricoDiaAnterior() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const dataOntem = formatarData(d);
+
+  const filtered = bancoHistorico.filter((i) => i.data === dataOntem);
   if (filtered.length === 0) return;
 
   let mensagem = "📌 Histórico de Placas - " + dataOntem + "\n\n";
-  filtered.forEach(item => {
+  filtered.forEach((item) => {
     mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
   });
 
@@ -600,7 +714,7 @@ async function enviarHistoricoDiaAnterior() {
       From: SMTP_FROM,
       Subject: "Histórico Diário - " + dataOntem,
       Body: mensagem.replace(/\n/g, "<br>"),
-      Attachments: [anexo]
+      Attachments: [anexo],
     });
 
     console.log("✅ Histórico de " + dataOntem + " enviado por e-mail.");
@@ -610,34 +724,27 @@ async function enviarHistoricoDiaAnterior() {
   }
 }
 
-// marca que foi enviado hoje
-function marcarEnvio() {
-  localStorage.setItem("emailEnviadoHoje", formatarData(new Date()));
-}
-// Verifica diariamente se precisa enviar o histórico do dia anterior
+/* -------------------------- Agendamento diário --------------------------- */
 function verificarEnvioDiario() {
   const agora = new Date();
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
-  const dataOntem = formatarData(ontem);
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const dataOntem = formatarData(d);
 
   const ultimoDiaEnviado = localStorage.getItem("ultimoDiaEnviado");
-
-  // Se já mandou o relatório de ontem, não repete
   if (ultimoDiaEnviado === dataOntem) return;
 
-  // Se já passou da meia-noite, pode enviar o de ontem
   if (agora.getHours() >= 0) {
     enviarHistoricoDiaAnterior();
   }
 }
-
-// verifica a cada minuto -> dispara se nao enviado
 setInterval(verificarEnvioDiario, 60 * 1000);
 
-
-// ===== ExportaÃ§Ã£o automÃ¡tica 24h =====
+/* --------------------- Exportação automática em PDF ---------------------- */
 function checarExportacaoAutomaticaPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) return; // só se a lib existir
+  const { jsPDF } = window.jspdf;
+
   const agora = new Date();
   const ultimaExportacao = localStorage.getItem("ultimaExportacao");
   let dataInicio;
@@ -646,10 +753,16 @@ function checarExportacaoAutomaticaPDF() {
     const ultima = new Date(ultimaExportacao);
     const diff = agora - ultima;
     const horas24 = 24 * 60 * 60 * 1000;
-    if (diff >= horas24) { dataInicio = ultima; } else { return; }
-  } else { dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000); }
+    if (diff >= horas24) {
+      dataInicio = ultima;
+    } else {
+      return;
+    }
+  } else {
+    dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+  }
 
-  const historicoFiltrado = bancoHistorico.filter(item => {
+  const historicoFiltrado = bancoHistorico.filter((item) => {
     const [dia, mes, ano] = item.data.split("/").map(Number);
     const dataItem = new Date(ano, mes - 1, dia);
     return dataItem > dataInicio;
@@ -657,59 +770,68 @@ function checarExportacaoAutomaticaPDF() {
 
   if (historicoFiltrado.length === 0) return;
 
-  const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(14);
-  doc.text("HistÃ³rico de Placas", 105, 15, null, null, "center");
+  doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
   let y = 25;
   doc.setFontSize(12);
-  historicoFiltrado.forEach(item => {
-    doc.text(`Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`, 10, y);
+  historicoFiltrado.forEach((item) => {
+    doc.text(
+      `Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`,
+      10,
+      y
+    );
     y += 8;
-    if (y > 280) { doc.addPage(); y = 20; }
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
   });
 
   const dataHoje = new Date().toISOString().split("T")[0];
   doc.save(`historico-${dataHoje}.pdf`);
   localStorage.setItem("ultimaExportacao", agora.toISOString());
-  console.log("ExportaÃ§Ã£o automÃ¡tica em PDF realizada!");
+  console.log("Exportação automática em PDF realizada!");
 }
 
-// ===== EXPORTAçaO LOCALSTORAGE =====
+/* --------------------- Backup/Restore do localStorage -------------------- */
 function exportLocalStorage() {
-    return JSON.stringify({
-        bancoCadastros,
-        bancoHistorico,
-        bancoAutorizados
-    });
+  return JSON.stringify({
+    bancoCadastros,
+    bancoHistorico,
+    bancoAutorizados,
+  });
 }
-
 function downloadLS(filename = "backup_localstorage.json") {
-    const blob = new Blob([exportLocalStorage()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+  const blob = new Blob([exportLocalStorage()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-// ===== BOTÃƒO EXPORTAR =====
+/* Botão “Exportar LS” */
 function criarBotaoExportLS() {
-    const btn = document.createElement("button");
-    btn.textContent = "Exportar LS";
-    btn.style = "padding:5px 10px; margin:5px; cursor:pointer; background:#2196F3; color:white; border:none; border-radius:5px;";
-    btn.addEventListener("click", () => {
-        downloadLS();
-        localStorage.setItem("lastLSBackup", Date.now().toString());
-        alert("Backup exportado!");
-    });
-    document.getElementById("historicoContainer").insertBefore(btn, null);
+  const area = document.getElementById("historicoContainer");
+  if (!area) return;
+
+  const btn = document.createElement("button");
+  btn.textContent = "Exportar LS";
+  btn.style =
+    "padding:5px 10px; margin:5px; cursor:pointer; background:#2196F3; color:white; border:none; border-radius:5px;";
+  btn.addEventListener("click", () => {
+    downloadLS();
+    localStorage.setItem("lastLSBackup", Date.now().toString());
+    alert("Backup exportado!");
+  });
+  area.insertBefore(btn, null);
 }
 criarBotaoExportLS();
 
-// ===== BOTÃO IMPORTAR =====
+/* Botão + Input “Importar LS” */
 const importInput = document.createElement("input");
 importInput.type = "file";
 importInput.accept = ".json";
@@ -719,69 +841,41 @@ document.body.appendChild(importInput);
 const importBtn = document.createElement("button");
 importBtn.textContent = "Importar LS";
 importBtn.style = "padding:5px 10px; margin:5px; cursor:pointer;";
-document.getElementById("historicoContainer").appendChild(importBtn);
+const histCont = document.getElementById("historicoContainer");
+if (histCont) histCont.appendChild(importBtn);
 
 importBtn.addEventListener("click", () => importInput.click());
-
 importInput.addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const file = event.target.files[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const dados = JSON.parse(e.target.result);
-            const chaves = ["bancoCadastros","bancoHistorico","bancoAutorizados"];
-            if (!chaves.every(k => dados.hasOwnProperty(k))) {
-                alert("Arquivo invÃ¡lido!");
-                return;
-            }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const dados = JSON.parse(e.target.result);
+      const chaves = ["bancoCadastros", "bancoHistorico", "bancoAutorizados"];
+      if (!chaves.every((k) => Object.prototype.hasOwnProperty.call(dados, k))) {
+        alert("Arquivo inválido!");
+        return;
+      }
 
-            // Atualiza localStorage e arrays
-            chaves.forEach(k => localStorage.setItem(k, JSON.stringify(dados[k])));
-            bancoCadastros = dados.bancoCadastros;
-            bancoHistorico = dados.bancoHistorico;
-            bancoAutorizados = dados.bancoAutorizados;
+      chaves.forEach((k) => localStorage.setItem(k, JSON.stringify(dados[k])));
+      bancoCadastros = dados.bancoCadastros;
+      bancoHistorico = dados.bancoHistorico;
+      bancoAutorizados = dados.bancoAutorizados;
 
-            salvarBanco(); // atualiza tela
-            alert("Backup importado com sucesso!");
-            importInput.value = ""; // permite reimportar mesmo arquivo
-        } catch (err) {
-            console.error(err);
-            alert("Erro ao importar arquivo!");
-        }
-    };
-    reader.readAsText(file);
+      salvarBanco();
+      alert("Backup importado com sucesso!");
+      importInput.value = "";
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao importar arquivo!");
+    }
+  };
+  reader.readAsText(file);
 });
 
-// --- GARANTE QUE A BIB docx ESTEJA CARREGADA (funciona no mobile e GitHub Pages) ---
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('Falha ao carregar: '+src));
-    document.head.appendChild(s);
-  });
-}
-async function ensureDocx(){
-  if (window.docx) return window.docx;
-  const cdns = [
-    'https://cdn.jsdelivr.net/npm/docx@7.1.0/build/index.umd.js',
-    'https://unpkg.com/docx@7.1.0/build/index.umd.js'
-  ];
-  for (const url of cdns){
-    try { 
-      await loadScript(url); 
-      if (window.docx) return window.docx; 
-    } catch(_){}
-  }
-  throw new Error('Biblioteca docx indisponível');
-}
-
-
-
-// ===== InicializaÃ§Ã£o =====
-mostrarPagina('inicioContainer');
+/* ------------------------------- Inicialização --------------------------- */
+mostrarPagina("inicioContainer");
 salvarBanco();
 window.addEventListener("load", checarExportacaoAutomaticaPDF);
