@@ -1,5 +1,5 @@
 /* ======================================================================
-   CONTROLE DE PLACAS – SCRIPT PRINCIPAL
+   CONTROLE DE PLACAS – SCRIPT PRINCIPAL (ANEXO EM PDF)
    ====================================================================== */
 
 /* ----------------------------- Bancos locais ----------------------------- */
@@ -25,7 +25,7 @@ function blobToBase64(blob) {
   });
 }
 
-/* ------------------- Garantir que a lib DOCX esteja ok ------------------- */
+/* ----------------- Carregamento da lib jsPDF com fallback ---------------- */
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -35,85 +35,19 @@ function loadScript(src) {
     document.head.appendChild(s);
   });
 }
-async function ensureDocx() {
-  if (window.docx) return window.docx;
+async function ensureJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
   const cdns = [
-    "https://cdn.jsdelivr.net/npm/docx@6.1.5/build/index.js",
-    "https://unpkg.com/docx@6.1.5/build/index.js",
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+    "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js",
   ];
   for (const url of cdns) {
     try {
       await loadScript(url);
-      if (window.docx) return window.docx;
+      if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
     } catch (_) {}
   }
-  throw new Error("Biblioteca docx indisponível");
-}
-
-/* ---------------------- Geração de DOCX (hoje/ontem) --------------------- */
-async function gerarAnexoWordHoje() {
-  const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
-
-  const hoje = new Date();
-  const dataHoje = formatarData(hoje);
-  const filtered = bancoHistorico.filter((i) => i.data === dataHoje);
-
-  let children = [];
-  if (filtered.length === 0) {
-    children.push(
-      new Paragraph({ children: [new TextRun("Nenhum histórico encontrado para hoje.")] })
-    );
-  } else {
-    children = filtered.map((item) =>
-      new Paragraph({
-        children: [
-          new TextRun(
-            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-              `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-              `⏱ Saída: ${item.horarioSaida || "-"}`
-          ),
-        ],
-      })
-    );
-  }
-
-  const doc = new Document({ sections: [{ properties: {}, children }] });
-  const blob = await Packer.toBlob(doc);
-  const base64 = await blobToBase64(blob);
-  return { name: `historico-${dataHoje}.docx`, data: base64 };
-}
-
-async function gerarAnexoWordOntem() {
-  const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
-
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const dataOntem = formatarData(d);
-  const filtered = bancoHistorico.filter((i) => i.data === dataOntem);
-
-  let children = [];
-  if (filtered.length === 0) {
-    children.push(
-      new Paragraph({ children: [new TextRun("Nenhum histórico encontrado para ontem.")] })
-    );
-  } else {
-    children = filtered.map((item) =>
-      new Paragraph({
-        children: [
-          new TextRun(
-            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-              `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-              `⏱ Saída: ${item.horarioSaida || "-"}`
-          ),
-        ],
-      })
-    );
-  }
-
-  const doc = new Document({ sections: [{ properties: {}, children }] });
-  const blob = await Packer.toBlob(doc);
-  const base64 = await blobToBase64(blob);
-  return { name: `historico-${dataOntem}.docx`, data: base64 };
+  throw new Error("Biblioteca jsPDF indisponível");
 }
 
 /* ------------------------- Persistência e telas -------------------------- */
@@ -124,6 +58,74 @@ function salvarBanco() {
   atualizarCadastros();
   atualizarTabelaAndamento();
   atualizarAutorizados();
+}
+
+/* ---------------------- Geração de PDF (hoje/ontem) ---------------------- */
+async function gerarAnexoPDFHoje() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    // carrega lib dinamicamente se não tiver
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const hoje = new Date();
+  const dataHoje = formatarData(hoje);
+  const filtered = bancoHistorico.filter(i => i.data === dataHoje);
+
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas - " + dataHoje, 105, 15, null, null, "center");
+
+  let y = 25;
+  filtered.forEach(item => {
+    doc.setFontSize(12);
+    doc.text(
+      `Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Status: ${item.status} | Entrada: ${item.horarioEntrada || "-"} | Saída: ${item.horarioSaida || "-"}`,
+      10,
+      y
+    );
+    y += 8;
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
+  });
+
+  const pdfBlob = doc.output("blob");
+  const pdfBase64 = await blobToBase64(pdfBlob);
+  return { name: `historico-${dataHoje}.pdf`, data: pdfBase64 };
+}
+
+async function enviarEmailOntem() {
+  const hoje = new Date();
+  const dataHoje = formatarData(hoje);
+  const filtered = bancoHistorico.filter(i => i.data === dataHoje);
+
+  if (filtered.length === 0) {
+    alert("Nenhum histórico encontrado para hoje!");
+    return;
+  }
+
+  let mensagem = "📌 Histórico de Placas - " + dataHoje + "\n\n";
+  filtered.forEach(item => {
+    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
+  });
+
+  try {
+    const anexo = await gerarAnexoPDFHoje();
+    await Email.send({
+      SecureToken: SMTP_SECURE_TOKEN,
+      To: "leomatos3914@gmail.com",
+      From: SMTP_FROM,
+      Subject: "Histórico Diário (Envio Manual - PDF)",
+      Body: mensagem.replace(/\n/g, "<br>"),
+      Attachments: [anexo],
+    });
+    alert("📧 Histórico em PDF enviado com sucesso!");
+  } catch (err) {
+    alert("❌ Erro ao enviar: " + (err.message || err));
+    console.error(err);
+  }
 }
 
 /* ------------------------ Listagem de Cadastros UI ----------------------- */
@@ -380,37 +382,35 @@ function exportarCSV() {
   alert("Exportado com sucesso!");
 }
 
-function exportarPDF() {
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("Biblioteca jsPDF não encontrada na página.");
-    return;
-  }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+async function exportarPDF() {
+  try {
+    const jsPDF = await ensureJsPDF();
+    const doc = new jsPDF();
 
-  const tabela = document.getElementById("listaHistorico");
-  if (!tabela || tabela.innerHTML.trim() === "") {
-    alert("Não há dados para exportar!");
-    return;
-  }
-
-  doc.setFontSize(14);
-  doc.text("Histórico de Placas", 105, 15, null, null, "center");
-
-  let y = 20;
-  const rows = tabela.querySelectorAll(".item");
-  rows.forEach((row) => {
-    doc.setFontSize(12);
-    doc.text(row.innerText.split("\n").join(" | "), 10, y);
-    y += 8;
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
+    const tabela = document.getElementById("listaHistorico");
+    if (!tabela || tabela.innerHTML.trim() === "") {
+      alert("Não há dados para exportar!");
+      return;
     }
-  });
 
-  const dataHoje = new Date().toISOString().split("T")[0];
-  doc.save(`historico-${dataHoje}.pdf`);
+    doc.setFontSize(14);
+    doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+    let y = 20;
+    const rows = tabela.querySelectorAll(".item");
+    doc.setFontSize(12);
+    rows.forEach((row) => {
+      const linhas = doc.splitTextToSize(row.innerText.split("\n").join(" | "), 190);
+      doc.text(linhas, 10, y);
+      y += 6 * linhas.length;
+      if (y > 280) { doc.addPage(); y = 20; }
+    });
+
+    const dataHoje = new Date().toISOString().split("T")[0];
+    doc.save(`historico-${dataHoje}.pdf`);
+  } catch (e) {
+    alert("Erro ao gerar PDF: " + e.message);
+  }
 }
 
 /* --------- Andamento (tabela de “em andamento” + botão de saída) -------- */
@@ -678,14 +678,14 @@ async function enviarEmailOntem() {
   });
 
   try {
-    const anexo = await gerarAnexoWordHoje();
+    const anexo = await gerarAnexoPDFHoje();
     await Email.send({
       SecureToken: SMTP_SECURE_TOKEN,
       To: "leomatos3914@gmail.com",
       From: SMTP_FROM,
       Subject: "Histórico Diário (Envio Manual de Hoje)",
       Body: mensagem.replace(/\n/g, "<br>"),
-      Attachments: [anexo],
+      Attachments: [{ name: anexo.name, data: anexo.data }]
     });
     alert("📧 Histórico de hoje enviado manualmente com sucesso!");
   } catch (err) {
@@ -707,14 +707,14 @@ async function enviarHistoricoDiaAnterior() {
   });
 
   try {
-    const anexo = await gerarAnexoWordOntem();
+    const anexo = await gerarAnexoPDFOntem();
     await Email.send({
       SecureToken: SMTP_SECURE_TOKEN,
       To: "leomatos3914@gmail.com",
       From: SMTP_FROM,
       Subject: "Histórico Diário - " + dataOntem,
       Body: mensagem.replace(/\n/g, "<br>"),
-      Attachments: [anexo],
+      Attachments: [{ name: anexo.name, data: anexo.data }]
     });
 
     console.log("✅ Histórico de " + dataOntem + " enviado por e-mail.");
@@ -741,58 +741,58 @@ function verificarEnvioDiario() {
 setInterval(verificarEnvioDiario, 60 * 1000);
 
 /* --------------------- Exportação automática em PDF ---------------------- */
-function checarExportacaoAutomaticaPDF() {
-  if (!window.jspdf || !window.jspdf.jsPDF) return; // só se a lib existir
-  const { jsPDF } = window.jspdf;
+async function checarExportacaoAutomaticaPDF() {
+  try {
+    const jsPDF = await ensureJsPDF();
 
-  const agora = new Date();
-  const ultimaExportacao = localStorage.getItem("ultimaExportacao");
-  let dataInicio;
+    const agora = new Date();
+    const ultimaExportacao = localStorage.getItem("ultimaExportacao");
+    let dataInicio;
 
-  if (ultimaExportacao) {
-    const ultima = new Date(ultimaExportacao);
-    const diff = agora - ultima;
-    const horas24 = 24 * 60 * 60 * 1000;
-    if (diff >= horas24) {
-      dataInicio = ultima;
+    if (ultimaExportacao) {
+      const ultima = new Date(ultimaExportacao);
+      const diff = agora - ultima;
+      const horas24 = 24 * 60 * 60 * 1000;
+      if (diff >= horas24) {
+        dataInicio = ultima;
+      } else {
+        return;
+      }
     } else {
-      return;
+      dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
     }
-  } else {
-    dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+
+    const historicoFiltrado = bancoHistorico.filter((item) => {
+      const [dia, mes, ano] = item.data.split("/").map(Number);
+      const dataItem = new Date(ano, mes - 1, dia);
+      return dataItem > dataInicio;
+    });
+
+    if (historicoFiltrado.length === 0) return;
+
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Histórico de Placas (últimas 24h)", 105, 15, null, null, "center");
+
+    let y = 25;
+    doc.setFontSize(12);
+    historicoFiltrado.forEach((item) => {
+      const linha =
+        `Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | ` +
+        `RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`;
+      const linhas = doc.splitTextToSize(linha, 190);
+      doc.text(linhas, 10, y);
+      y += 6 * linhas.length;
+      if (y > 280) { doc.addPage(); y = 20; }
+    });
+
+    const dataHoje = new Date().toISOString().split("T")[0];
+    doc.save(`historico-${dataHoje}.pdf`);
+    localStorage.setItem("ultimaExportacao", agora.toISOString());
+    console.log("Exportação automática em PDF realizada!");
+  } catch (e) {
+    console.log("Não foi possível gerar PDF automático:", e.message);
   }
-
-  const historicoFiltrado = bancoHistorico.filter((item) => {
-    const [dia, mes, ano] = item.data.split("/").map(Number);
-    const dataItem = new Date(ano, mes - 1, dia);
-    return dataItem > dataInicio;
-  });
-
-  if (historicoFiltrado.length === 0) return;
-
-  const doc = new jsPDF();
-  doc.setFontSize(14);
-  doc.text("Histórico de Placas", 105, 15, null, null, "center");
-
-  let y = 25;
-  doc.setFontSize(12);
-  historicoFiltrado.forEach((item) => {
-    doc.text(
-      `Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`,
-      10,
-      y
-    );
-    y += 8;
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-  });
-
-  const dataHoje = new Date().toISOString().split("T")[0];
-  doc.save(`historico-${dataHoje}.pdf`);
-  localStorage.setItem("ultimaExportacao", agora.toISOString());
-  console.log("Exportação automática em PDF realizada!");
 }
 
 /* --------------------- Backup/Restore do localStorage -------------------- */
