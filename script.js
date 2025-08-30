@@ -52,7 +52,7 @@ async function ensureDocx() {
 
 /* ---------------------- Geração de DOCX (hoje/ontem) --------------------- */
 async function gerarAnexoWordHoje() {
-  const { Document, Packer, Paragraph, TextRun } = window.docx;
+  const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
 
   const hoje = new Date();
   const dataHoje = formatarData(hoje);
