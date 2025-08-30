@@ -20,29 +20,25 @@ function blobToBase64(blob) {
   });
 }
 
-// Gera documento Word (.docx) com o histórico de hoje
-// Gera documento Word (.docx) com o histórico do dia anterior
-async function gerarAnexoWordOntem() {
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
-  const dataOntem = formatarData(ontem);
-  const filtered = bancoHistorico.filter(item => item.data === dataOntem);
+// Gera DOCX de HOJE
+async function gerarAnexoWordHoje() {
+  const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
 
-  const { Document, Packer, Paragraph, TextRun } = window.docx;
+  const hoje = new Date();
+  const dataHoje = formatarData(hoje);
+  const filtered = bancoHistorico.filter(item => item.data === dataHoje);
 
   let children = [];
   if (filtered.length === 0) {
-    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para ontem.") ] }));
+    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para hoje.") ] }));
   } else {
     children = filtered.map(item =>
       new Paragraph({
-        children: [
-          new TextRun(
-            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-            `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-            `⏱ Saída: ${item.horarioSaida || "-"}`
-          )
-        ]
+        children: [ new TextRun(
+          `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
+          `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
+          `⏱ Saída: ${item.horarioSaida || "-"}`
+        ) ]
       })
     );
   }
@@ -50,11 +46,36 @@ async function gerarAnexoWordOntem() {
   const doc = new Document({ sections: [{ properties: {}, children }] });
   const blob = await Packer.toBlob(doc);
   const base64 = await blobToBase64(blob);
+  return { name: `historico-${dataHoje}.docx`, data: base64 };
+}
 
-  return {
-    name: `historico-${dataOntem}.docx`,
-    data: base64
-  };
+// Gera DOCX de ONTEM
+async function gerarAnexoWordOntem() {
+  const { Document, Packer, Paragraph, TextRun } = await ensureDocx();
+
+  const ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
+  const dataOntem = formatarData(ontem);
+  const filtered = bancoHistorico.filter(item => item.data === dataOntem);
+
+  let children = [];
+  if (filtered.length === 0) {
+    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para ontem.") ] }));
+  } else {
+    children = filtered.map(item =>
+      new Paragraph({
+        children: [ new TextRun(
+          `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
+          `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
+          `⏱ Saída: ${item.horarioSaida || "-"}`
+        ) ]
+      })
+    );
+  }
+
+  const doc = new Document({ sections: [{ properties: {}, children }] });
+  const blob = await Packer.toBlob(doc);
+  const base64 = await blobToBase64(blob);
+  return { name: `historico-${dataOntem}.docx`, data: base64 };
 }
 
 
@@ -525,41 +546,7 @@ function limparTudo() {
   } else if (senha !== null) { alert("Senha incorreta âŒ"); }
 }
 
-// Botão para enviar manualmente o histórico de hoje
-// Gera documento Word (.docx) com o histórico de hoje
-async function gerarAnexoWordHoje() {
-  const hoje = new Date();
-  const dataHoje = formatarData(hoje);
-  const filtered = bancoHistorico.filter(item => item.data === dataHoje);
 
-  const { Document, Packer, Paragraph, TextRun } = window.docx;
-
-  let children = [];
-  if (filtered.length === 0) {
-    children.push(new Paragraph({ children: [ new TextRun("Nenhum histórico encontrado para hoje.") ] }));
-  } else {
-    children = filtered.map(item =>
-      new Paragraph({
-        children: [
-          new TextRun(
-            `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | ` +
-            `🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ` +
-            `⏱ Saída: ${item.horarioSaida || "-"}`
-          )
-        ]
-      })
-    );
-  }
-
-  const doc = new Document({ sections: [{ properties: {}, children }] });
-  const blob = await Packer.toBlob(doc);
-  const base64 = await blobToBase64(blob);
-
-  return {
-    name: `historico-${dataHoje}.docx`,
-    data: base64
-  };
-}
 
 // Botão para enviar manualmente o histórico de HOJE
 async function enviarEmailOntem() { // mantém o nome da função igual
@@ -766,6 +753,28 @@ importInput.addEventListener("change", (event) => {
     };
     reader.readAsText(file);
 });
+
+// --- GARANTE QUE A BIB docx ESTEJA CARREGADA (funciona no mobile e GitHub Pages) ---
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Falha ao carregar: '+src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureDocx(){
+  if (window.docx) return window.docx;
+  const cdns = [
+    'https://cdn.jsdelivr.net/npm/docx@6.1.5/build/index.js',
+    'https://unpkg.com/docx@6.1.5/build/index.js'
+  ];
+  for (const url of cdns){
+    try { await loadScript(url); if (window.docx) return window.docx; } catch(_){}
+  }
+  throw new Error('Biblioteca docx indisponível');
+}
 
 
 
