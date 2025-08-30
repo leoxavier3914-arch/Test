@@ -7,15 +7,11 @@
 
   <!-- CSS -->
   <link rel="stylesheet" href="style.css">
-
-  <!-- EmailJS -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-<script type="text/javascript">
-  (function() {
-    emailjs.init("vPVpXFO3k8QblVbqr"); //  public key
-  })();
+<!-- SMTP.js -->
+<script src="https://smtpjs.com/v3/smtp.js">
 </script>
-
+<!-- docx (para gerar o .docx no navegador) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.7.0/docx.umd.min.js"></script>
   <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -78,7 +74,7 @@
   <button onclick="filtrarHistorico()">Buscar</button>
   <button id="exportBtn" onclick="exportarCSV()">Exportar CSV</button>
   <button onclick="exportarPDF()">Exportar PDF</button>
-  <button onclick="enviarEmail()">Enviar por e-mail</button>
+  <button onclick="enviarEmailOntem()">Enviar por e-mail</button>
   <div id="listaHistorico" class="lista"></div>
 </div>
 
