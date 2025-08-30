@@ -7,23 +7,23 @@
 
   <!-- CSS -->
   <link rel="stylesheet" href="style.css">
+
+<!-- jsPDF já deve estar no seu index, mantenha -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- docx (coloque ANTES do script.js) -->
+<script src="https://cdn.jsdelivr.net/npm/docx@6.1.5/build/index.js"></script>
+
 <!-- SMTP.js -->
 <script src="https://smtpjs.com/v3/smtp.js">
 </script>
-<!-- docx (para gerar o .docx no navegador) -->
-<script src="https://cdn.jsdelivr.net/npm/docx@7.1.0/build/index.umd.js"></script>
-<script>
-  if (window.docx) {
-    alert("✅ Biblioteca docx carregada!");
-  } else {
-    alert("❌ Biblioteca docx NÃO carregou!");
-  }
-</script>
   
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
-<body>
+<!-- seu script -->
+<script src="script.js"></script>
+  
+
+
+  
 
 <div class="menu-btn" onclick="toggleMenu()">&#9776;</div>
 
@@ -86,7 +86,6 @@
   <div id="listaHistorico" class="lista"></div>
 </div>
 
-<!-- script principal -->
-<script src="script.js"></script>
+
 </body>
 </html>
