@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste SMTP.js com Outlook</title>
+  <script src="https://smtpjs.com/v3/smtp.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <h1>Teste envio de e-mail com Outlook via SMTP.js</h1>
+  <button onclick="enviarTeste()">Enviar Teste</button>
+
+  <script>
+    function enviarTeste() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Teste de envio via SMTP.js", 20, 20);
+
+      // gera PDF em base64
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+      Email.send({
+        SecureToken: "f770b27b-ecc7-412f-8d89-1671b1ede2ee",  // seu token válido
+        To: "histplacas@outlook.com",  // 👈 primeiro testa mandando pra você mesmo
+        From: "histplacas@outlook.com",
+        Subject: "Teste simples de envio SMTP.js",
+        Body: "Se você recebeu este e-mail, o SMTP.js + Outlook está funcionando.",
+        Attachments: [
+          { name: "teste.pdf", data: pdfBase64 }
+        ]
+      }).then(msg => alert("Resposta do servidor: " + msg))
+        .catch(err => alert("Erro: " + JSON.stringify(err)));
+    }
+  </script>
+</body>
+</html>
