@@ -2,28 +2,40 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Teste SMTP.js com Outlook</title>
-  <script src="https://smtpjs.com/v3/smtp.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <title>Teste envio com Resend + Vercel</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #log { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; }
+  </style>
 </head>
 <body>
-  <h1>Teste envio de e-mail com Outlook via SMTP.js</h1>
-  <button onclick="enviarTeste()">Enviar Teste</button>
+  <h1>Teste envio de e-mail</h1>
+  <button id="btnEnviar">Enviar E-mail</button>
+
+  <div id="log">Aguardando...</div>
 
   <script>
-   function enviarTeste() {
-      Email.send({
-        SecureToken: "ad69e972-548c-4adc-bb86-c07d5bf98b80", // seu token Gmail
-        To: "leomatos3914@gmail.com",   // destinatário
-        From: "histplacas@gmail.com",   // TEM que ser o mesmo e-mail usado no token
-        Subject: "Teste simples sem anexo",
-        Body: "Se você recebeu este e-mail, o SMTP.js + Gmail está funcionando."
-      })
-      .then(msg => alert("Resposta do servidor: " + msg))
-      .catch(err => alert("Erro: " + JSON.stringify(err)));
-    }
+    document.getElementById("btnEnviar").addEventListener("click", async () => {
+      const log = document.getElementById("log");
+      log.innerHTML = "Enviando...";
+
+      try {
+        const r = await fetch("https://histplacas-mailer.vercel.app/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: "leomatos3914@gmail.com",
+            subject: "Teste via Vercel + Resend",
+            html: "<h2>Funcionou 🎉</h2><p>Email disparado do Vercel API!</p>"
+          })
+        });
+
+        const data = await r.json();
+        log.innerHTML = "<b>Resposta:</b><br><pre>" + JSON.stringify(data, null, 2) + "</pre>";
+      } catch (err) {
+        log.innerHTML = "<b>Erro:</b> " + err.message;
+      }
+    });
   </script>
 </body>
 </html>
-
-//ad69e972-548c-4adc-bb86-c07d5bf98b80
