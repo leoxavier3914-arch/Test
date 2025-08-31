@@ -13,9 +13,11 @@
   <script>
 function enviarTeste() {
   Email.send({
-    SecureToken: "893469bf-80ff-46b8-ba63-4d4ffde90d2d",
-    To: "histplacas@outlook.com",
-    From: "histplacas@outlook.com",
+    Host: "smtp.office365.com",
+    Username: "histplacas@gmail.com",
+    Password: "gxwh ejbc iggk rsgb"
+    To: "leomatos3914@gmail.com",
+    From: "histplacas@gmail.com",
     Subject: "Teste simples sem anexo",
     Body: "Se você recebeu este e-mail, o SMTP.js está funcionando sem anexo."
   }).then(msg => alert("Resposta do servidor: " + msg))
