@@ -1,35 +1,14 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Teste envio de e-mail</title>
-</head>
-<body>
-  <h2>Teste envio de e-mail com Resend</h2>
-  <button id="enviar">Enviar E-mail</button>
-  <pre id="saida"></pre>
-
-  <script>
-    document.getElementById("enviar").addEventListener("click", async () => {
-      try {
-        const resposta = await fetch("https://histplacas-mailer.vercel.app/api/send-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            to: "seuemail@gmail.com",
-            subject: "Teste Resend via Vercel",
-            html: "<h1>Funcionou ✅</h1><p>Email enviado com sucesso!</p>"
-          })
-        });
-
-        const data = await resposta.json();
-        document.getElementById("saida").textContent = JSON.stringify(data, null, 2);
-      } catch (erro) {
-        document.getElementById("saida").textContent = "Erro: " + erro;
-      }
-    });
-  </script>
-</body>
-</html>
+fetch("https://histplacas-mailer.vercel.app/api/send-email", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    to: "SEUEMAIL@gmail.com",
+    subject: "Teste CORS OK",
+    html: "<h1>Funcionou! 🚀</h1>"
+  })
+})
+.then(r => r.json())
+.then(console.log)
+.catch(console.error);
