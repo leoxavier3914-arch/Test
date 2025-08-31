@@ -12,18 +12,17 @@
 
   <script>
 function enviarTeste() {
-  Email.send({
-    Host: "smtp.office365.com",
-    Username: "histplacas@gmail.com",
-    Password: "gxwh ejbc iggk rsgb"
-    To: "leomatos3914@gmail.com",
-    From: "histplacas@gmail.com",
-    Subject: "Teste simples sem anexo",
-    Body: "Se você recebeu este e-mail, o SMTP.js está funcionando sem anexo."
-  }).then(msg => alert("Resposta do servidor: " + msg))
-    .catch(err => alert("Erro: " + JSON.stringify(err)));
-}
+Email.send({
+  SecureToken: "ad69e972-548c-4adc-bb86-c07d5bf98b80",
+  To: "leomatos3914@gmail.com",
+  From: "histplacas@gmail.com",
+  Subject: "Teste simples sem anexo",
+  Body: "Se você recebeu este e-mail, o SMTP.js está funcionando sem anexo."
+})
+
 
   </script>
 </body>
 </html>
+
+//ad69e972-548c-4adc-bb86-c07d5bf98b80
