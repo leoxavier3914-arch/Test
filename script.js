@@ -1,8 +1,5 @@
-/* ======================================================================
-   CONTROLE DE PLACAS – SCRIPT PRINCIPAL (ANEXO EM PDF)
-   ====================================================================== */
 
-/* ----------------------------- Bancos locais ----------------------------- */
+
 let bancoCadastros   = JSON.parse(localStorage.getItem("bancoCadastros"))   || [];
 let bancoHistorico   = JSON.parse(localStorage.getItem("bancoHistorico"))   || [];
 let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
@@ -12,14 +9,16 @@ let cadastroSelecionado   = null;
 let autorizadoSelecionado = null;
 
 /* --------------------------- SMTP.js (Email.send) ------------------------ */
-const SMTP_SECURE_TOKEN = "2e238640-c22d-48d3-9fd1-bddbed05de92"; // token do smtpjs.com
+const SMTP_SECURE_TOKEN = "c0b56a67-68b5-4a95-93d7-a73ce5e7bc60"; // token do smtpjs.com
 const SMTP_FROM         = "histplacas@gmail.com";                 // e-mail do token
 
-/* ------------------------- Util: Blob -> Base64 -------------------------- */
+/* ------------------------- Util: Blob -> Base64 --------------------------
+   IMPORTANTE: agora retornamos a DATA URL COMPLETA (com "data:application/pdf;base64,...")
+-------------------------------------------------------------------------- */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+    reader.onloadend = () => resolve(reader.result); // retorno COMPLETO (sem split)
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
@@ -40,6 +39,7 @@ async function ensureJsPDF() {
   const cdns = [
     "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
     "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
   ];
   for (const url of cdns) {
     try {
@@ -48,6 +48,22 @@ async function ensureJsPDF() {
     } catch (_) {}
   }
   throw new Error("Biblioteca jsPDF indisponível");
+}
+
+/* ------------------- Garantir SMTP.js (local, sem hospedagem) ----------- */
+async function ensureSMTP() {
+  if (window.Email && typeof window.Email.send === "function") return true;
+  const cdns = [
+    "https://smtpjs.com/v3/smtp.js",
+    "https://cdn.jsdelivr.net/gh/elcharitas/SimpleSMTP@master/smtp.js" // reserva
+  ];
+  for (const url of cdns) {
+    try {
+      await loadScript(url);
+      if (window.Email && typeof window.Email.send === "function") return true;
+    } catch (_) {}
+  }
+  throw new Error("SMTP.js indisponível");
 }
 
 /* ------------------------- Persistência e telas -------------------------- */
@@ -92,11 +108,9 @@ async function gerarAnexoPDFHoje() {
   });
 
   const pdfBlob = doc.output("blob");
-  const pdfBase64 = await blobToBase64(pdfBlob);
-  return { name: `historico-${dataHoje}.pdf`, data: pdfBase64 };
+  const pdfDataUrl = await blobToBase64(pdfBlob); // data:application/pdf;base64,...
+  return { name: `historico-${dataHoje}.pdf`, data: pdfDataUrl };
 }
-
-
 
 /* ------------------------ Listagem de Cadastros UI ----------------------- */
 function atualizarCadastros() {
@@ -633,10 +647,14 @@ function limparTudo() {
 
 /* ------------------- Envio por e-mail (manual/automático) ---------------- */
 async function enviarEmailOntem() {
-  // nome mantido, mas envia HOJE
+  alert("🔵 Clique detectado, função iniciou");
+
   const hoje = new Date();
   const dataHoje = formatarData(hoje);
   const filtered = bancoHistorico.filter((i) => i.data === dataHoje);
+
+  alert("🔵 Registros encontrados: " + filtered.length);
+
   if (filtered.length === 0) {
     alert("Nenhum histórico encontrado para hoje!");
     return;
@@ -644,19 +662,27 @@ async function enviarEmailOntem() {
 
   let mensagem = "📌 Histórico de Placas - " + dataHoje + "\n\n";
   filtered.forEach((item) => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
+    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome}\n`;
   });
 
   try {
+    alert("🔵 Garantindo SMTP.js...");
+    await ensureSMTP();
+
+    alert("🔵 Gerando PDF...");
     const anexo = await gerarAnexoPDFHoje();
+
+    alert("🔵 Enviando e-mail...");
     await Email.send({
       SecureToken: SMTP_SECURE_TOKEN,
       To: "leomatos3914@gmail.com",
       From: SMTP_FROM,
       Subject: "Histórico Diário (Envio Manual de Hoje)",
       Body: mensagem.replace(/\n/g, "<br>"),
+      // AGORA passamos a DATA URL COMPLETA
       Attachments: [{ name: anexo.name, data: anexo.data }]
     });
+
     alert("📧 Histórico de hoje enviado manualmente com sucesso!");
   } catch (err) {
     alert("❌ Erro ao enviar: " + (err && err.message ? err.message : err));
@@ -677,13 +703,17 @@ async function enviarHistoricoDiaAnterior() {
   });
 
   try {
+    await ensureSMTP();
     const anexo = await gerarAnexoPDFOntem();
     await Email.send({
       SecureToken: SMTP_SECURE_TOKEN,
       To: "leomatos3914@gmail.com",
       From: SMTP_FROM,
       Subject: "Histórico Diário - " + dataOntem,
-      Body: mensagem.replace(/\n/g, "<br>"),
+      Body: (mensagem && typeof mensagem === "string") 
+        ? mensagem.replace(/\n/g, "<br>") 
+        : "Sem conteúdo disponível",
+      // DATA URL COMPLETA aqui também
       Attachments: [{ name: anexo.name, data: anexo.data }]
     });
 
@@ -873,8 +903,8 @@ async function gerarAnexoPDFOntem() {
   });
 
   const pdfBlob = doc.output("blob");
-  const pdfBase64 = await blobToBase64(pdfBlob);
-  return { name: `historico-${dataOntem}.pdf`, data: pdfBase64 };
+  const pdfDataUrl = await blobToBase64(pdfBlob); // data:application/pdf;base64,...
+  return { name: `historico-${dataOntem}.pdf`, data: pdfDataUrl };
 }
 
 /* ------------------------------- Inicialização --------------------------- */
