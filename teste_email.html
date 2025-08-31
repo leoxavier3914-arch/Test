@@ -11,16 +11,17 @@
   <button onclick="enviarTeste()">Enviar Teste</button>
 
   <script>
-function enviarTeste() {
-Email.send({
-  SecureToken: "ad69e972-548c-4adc-bb86-c07d5bf98b80",
-  To: "leomatos3914@gmail.com",
-  From: "histplacas@gmail.com",
-  Subject: "Teste simples sem anexo",
-  Body: "Se você recebeu este e-mail, o SMTP.js está funcionando sem anexo."
-})
-
-
+   function enviarTeste() {
+      Email.send({
+        SecureToken: "ad69e972-548c-4adc-bb86-c07d5bf98b80", // seu token Gmail
+        To: "leomatos3914@gmail.com",   // destinatário
+        From: "histplacas@gmail.com",   // TEM que ser o mesmo e-mail usado no token
+        Subject: "Teste simples sem anexo",
+        Body: "Se você recebeu este e-mail, o SMTP.js + Gmail está funcionando."
+      })
+      .then(msg => alert("Resposta do servidor: " + msg))
+      .catch(err => alert("Erro: " + JSON.stringify(err)));
+    }
   </script>
 </body>
 </html>
