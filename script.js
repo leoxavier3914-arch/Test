@@ -320,21 +320,23 @@ function enviarPDFManual() {
   const pdfBlob = exportarPDF();
   if (!pdfBlob) return;
 
-  const reader = new FileReader();
-  reader.onload = function() {
-    const pdfBase64 = reader.result.split(',')[1]; // pega só o Base64
+  const formData = new FormData();
+  formData.append("service_id", "service_t9bocqh");
+  formData.append("template_id", "template_n4uw7xi");
+  formData.append("user_id", "vPVpXFO3k8QblVbqr");
+  formData.append("to_email", "histplacas@gmail.com");
+  formData.append("title", "Histórico Diário (PDF Manual)");
+  formData.append("name", "Sistema de Placas");
+  formData.append("message", "Segue o histórico em PDF.");
+  formData.append("files[]", pdfBlob, "historico.pdf"); // ✅ anexo real
 
-    emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-      to_email: "histplacas@gmail.com",
-      title: "Histórico Diário (PDF Manual)",
-      name: "Sistema de Placas",
-      message: "Segue o histórico em PDF.",
-      attachment: pdfBase64   // <-- aqui vai direto
-    })
-    .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
-    .catch(err => alert("❌ Erro ao enviar: " + JSON.stringify(err)));
-  };
-  reader.readAsDataURL(pdfBlob);
+  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.text())
+  .then(res => alert("📧 PDF enviado manualmente com sucesso!"))
+  .catch(err => alert("❌ Erro ao enviar: " + err));
 }
 
 
