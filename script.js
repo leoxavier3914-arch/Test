@@ -295,7 +295,7 @@ function exportarPDF() {
   const doc = new jsPDF();
 
   const tabela = document.getElementById("listaHistorico");
-  if (tabela.innerHTML.trim() === "") { alert("Não há dados para exportar!"); return; }
+  if (tabela.innerHTML.trim() === "") { alert("Não há dados para exportar!"); return null; }
 
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
@@ -310,37 +310,34 @@ function exportarPDF() {
   });
 
   const dataHoje = new Date().toISOString().split("T")[0];
-  doc.save(`historico-${dataHoje}.pdf`);
+  const filename = `historico-${dataHoje}.pdf`;
+
+  doc.save(filename); // download manual
+  const pdfBlob = doc.output("blob"); // retorna blob para envio
+  return pdfBlob;
 }
 
-// ===== Enviar e-mail =====
-// ===== Enviar e-mail (Manual via Botão) =====
-function enviarEmail() {
-  const hoje = formatarData(new Date());
-  const filtered = bancoHistorico.filter(item => item.data === hoje);
 
-  if (filtered.length === 0) {
-    alert("Nenhum histórico encontrado para hoje!");
-    return;
-  }
+function enviarPDFManual() {
+  const pdfBlob = exportarPDF();
+  if (!pdfBlob) return;
 
-  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
-  filtered.forEach(item => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
-  });
+  const reader = new FileReader();
+  reader.onload = function() {
+    const pdfBase64 = reader.result.split(',')[1]; // base64 do PDF
 
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-    to_email: "leomatos3914@gmail.com",
-    title: "Histórico Diário (Envio Manual)",
-    name: "Sistema de Placas",
-    message: mensagem
-  })
-  .then(() => {
-    alert("📧 Histórico enviado manualmente com sucesso!");
-  })
-  .catch(err => {
-    alert("❌ Erro ao enviar: " + JSON.stringify(err));
-  });
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+      to_email: "histplacas@gmail.com",
+      title: "Histórico Diário (PDF Manual)",
+      name: "Sistema de Placas",
+      attachment: pdfBase64
+    }).then(() => {
+      alert("📧 PDF enviado manualmente com sucesso!");
+    }).catch(err => {
+      alert("❌ Erro ao enviar: " + JSON.stringify(err));
+    });
+  };
+  reader.readAsDataURL(pdfBlob);
 }
 
 // ===== Entrada/Saída de placas =====
@@ -673,20 +670,37 @@ window.addEventListener("load", () => {
   }
 });
 
-// Agendamento automático se estiver aberto no horário
+function enviarPDFAutomático() {
+  const pdfBlob = exportarPDF();
+  if (!pdfBlob) return;
+
+  const reader = new FileReader();
+  reader.onload = function() {
+    const pdfBase64 = reader.result.split(',')[1];
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+      to_email: "seuemail@gmail.com",
+      title: "Histórico Diário (PDF Automático)",
+      name: "Sistema de Placas",
+      attachment: pdfBase64
+    }).then(() => {
+      console.log("✅ PDF enviado automaticamente!");
+      localStorage.setItem("ultimoEnvio", formatarData(new Date()));
+    }).catch(err => console.error(err));
+  };
+  reader.readAsDataURL(pdfBlob);
+}
 setInterval(() => {
   const agora = new Date();
-  if (
-    !jaEnviouHoje() &&
-    agora.getHours() === horaEnvio &&
-    agora.getMinutes() === minutoEnvio
-  ) {
-    enviarHistoricoDiario();
+  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
+  const hoje = formatarData(new Date());
+
+  if (ultimoEnvio !== hoje && agora.getHours() === 18 && agora.getMinutes() === 30) {
+    enviarPDFAutomático();
   }
 }, 60000);
+
 
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
 salvarBanco();
 window.addEventListener("load", checarExportacaoAutomaticaPDF);
-
