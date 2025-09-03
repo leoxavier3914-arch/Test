@@ -312,11 +312,9 @@ function exportarPDF() {
   const dataHoje = new Date().toISOString().split("T")[0];
   const filename = `historico-${dataHoje}.pdf`;
 
-  doc.save(filename); // download manual
   const pdfBlob = doc.output("blob"); // retorna blob para envio
   return pdfBlob;
 }
-
 
 function enviarPDFManual() {
   const pdfBlob = exportarPDF();
@@ -324,21 +322,22 @@ function enviarPDFManual() {
 
   const reader = new FileReader();
   reader.onload = function() {
-    const pdfBase64 = reader.result.split(',')[1]; // base64 do PDF
+    const pdfBase64 = reader.result.split(',')[1]; // pega só o Base64
 
     emailjs.send("service_t9bocqh", "template_n4uw7xi", {
       to_email: "histplacas@gmail.com",
       title: "Histórico Diário (PDF Manual)",
       name: "Sistema de Placas",
-      attachment: pdfBase64
-    }).then(() => {
-      alert("📧 PDF enviado manualmente com sucesso!");
-    }).catch(err => {
-      alert("❌ Erro ao enviar: " + JSON.stringify(err));
-    });
+      message: "Segue o histórico em PDF.",
+      attachment: pdfBase64   // <-- aqui vai direto
+    })
+    .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
+    .catch(err => alert("❌ Erro ao enviar: " + JSON.stringify(err)));
   };
   reader.readAsDataURL(pdfBlob);
 }
+
+
 
 // ===== Entrada/Saída de placas =====
 function verificarPlaca() {
@@ -678,11 +677,18 @@ function enviarPDFAutomático() {
   reader.onload = function() {
     const pdfBase64 = reader.result.split(',')[1];
     emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-      to_email: "seuemail@gmail.com",
-      title: "Histórico Diário (PDF Automático)",
-      name: "Sistema de Placas",
-      attachment: pdfBase64
-    }).then(() => {
+  to_email: "seuemail@gmail.com",
+  title: "Histórico Diário (PDF Automático)",
+  name: "Sistema de Placas",
+  attachment: [
+    {
+      name: "historico.pdf",
+      data: pdfBase64,
+      type: "application/pdf"
+    }
+  ]
+})
+.then(() => {
       console.log("✅ PDF enviado automaticamente!");
       localStorage.setItem("ultimoEnvio", formatarData(new Date()));
     }).catch(err => console.error(err));
