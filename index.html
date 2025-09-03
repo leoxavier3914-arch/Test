@@ -8,19 +8,18 @@
   <!-- CSS -->
   <link rel="stylesheet" href="style.css">
 
-<!-- SMTP.js -->
-<script src="https://smtpjs.com/v3/smtp.js">
+  <!-- EmailJS -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script type="text/javascript">
+  (function() {
+    emailjs.init("vPVpXFO3k8QblVbqr"); //  public key
+  })();
 </script>
 
-  <!-- jsPDF  -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
-<!-- script -->
-<script src="script.js"></script>
-  
-
-
-  
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
 
 <div class="menu-btn" onclick="toggleMenu()">&#9776;</div>
 
@@ -79,10 +78,11 @@
   <button onclick="filtrarHistorico()">Buscar</button>
   <button id="exportBtn" onclick="exportarCSV()">Exportar CSV</button>
   <button onclick="exportarPDF()">Exportar PDF</button>
-  <button onclick="enviarEmailOntem()">Enviar por e-mail</button>
+  <button onclick="enviarEmail()">Enviar por e-mail</button>
   <div id="listaHistorico" class="lista"></div>
 </div>
 
-
+<!-- script principal -->
+<script src="script.js"></script>
 </body>
 </html>
