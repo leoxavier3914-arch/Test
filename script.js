@@ -3,9 +3,7 @@ let bancoCadastros = JSON.parse(localStorage.getItem("bancoCadastros")) || [];
 let bancoHistorico = JSON.parse(localStorage.getItem("bancoHistorico")) || [];
 let bancoAutorizados = JSON.parse(localStorage.getItem("bancoAutorizados")) || [];
 
-// Inicializa o EmailJS
-emailjs.init("vPVpXFO3k8QblVbqr"); // substitua pelo seu user ID do EmailJS
-
+// ===== Salvar banco =====
 function salvarBanco() {
   localStorage.setItem("bancoCadastros", JSON.stringify(bancoCadastros));
   localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
@@ -41,18 +39,13 @@ function atualizarCadastros() {
     };
 
     const serrinha = div.querySelector(".menuSerra");
-serrinha.addEventListener("click", (e) => {
-  e.stopPropagation(); // não ativa seleção do item
-
-  const submenu = serrinha.querySelector(".submenu");
-  const isVisible = submenu.style.display === "block"; // verifica antes de fechar outros
-
-  // Fecha todos os submenus
-  document.querySelectorAll(".submenu").forEach(s => s.style.display = "none");
-
-  // Se estava aberto, fecha; se estava fechado, abre
-  submenu.style.display = isVisible ? "none" : "block";
-});
+    serrinha.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const submenu = serrinha.querySelector(".submenu");
+      const isVisible = submenu.style.display === "block";
+      document.querySelectorAll(".submenu").forEach(s => s.style.display = "none");
+      submenu.style.display = isVisible ? "none" : "block";
+    });
 
     listaDiv.appendChild(div);
   });
@@ -63,13 +56,11 @@ function selecionarCadastro(index) {
   const clicado = itens[index];
 
   if (clicado.classList.contains("selecionado")) {
-    // Se já estava selecionado, desmarcar e esconder serrinha/submenu
     clicado.classList.remove("selecionado");
     const submenu = clicado.querySelector(".submenu");
     if (submenu) submenu.style.display = "none";
     cadastroSelecionado = null;
   } else {
-    // Marca o item clicado e desmarca os outros
     itens.forEach((el, i) => {
       if (i === index) {
         el.classList.add("selecionado");
@@ -83,32 +74,32 @@ function selecionarCadastro(index) {
   }
 }
 
-
-
-
 function atualizarAutorizados() {
   const listaDiv = document.getElementById("listaAutorizados");
   listaDiv.innerHTML = "";
-
   bancoAutorizados.forEach((item, index) => {
-    listaDiv.innerHTML += `
-      <div class="item">
-        <input type="radio" name="selecionadoAut" value="${index}" id="aut${index}">
-        <label for="aut${index}"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</label>
-      </div>
-    `;
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarAutorizado(index);
+    listaDiv.appendChild(div);
   });
 }
 
-function atualizarTabelaAndamento() {
-  const tbody = document.getElementById("tabelaAndamento");
-  tbody.innerHTML = "";
-  bancoHistorico.filter(h => h.status === "Em andamento").forEach(h => {
-    tbody.innerHTML += `<tr><td>${h.placa}</td><td>${h.nome}</td><td class="horaEntrada">${h.horarioEntrada}</td><td><button class="saida" onclick="marcarSaida('${h.placa}')">Saída</button></td></tr>`;
+let autorizadoSelecionado = null;
+function selecionarAutorizado(index) {
+  const itens = document.querySelectorAll("#listaAutorizados .item");
+  itens.forEach((el, i) => {
+    if (i === index) {
+      el.classList.add("selecionado");
+      autorizadoSelecionado = index;
+    } else {
+      el.classList.remove("selecionado");
+    }
   });
 }
 
-// ===== Adicionar autorizado =====
+// ===== CRUD autorizados =====
 function adicionarAutorizado() {
   const nome = document.getElementById("nomeAutInput").value;
   const placa = document.getElementById("placaAutInput").value;
@@ -122,55 +113,10 @@ function adicionarAutorizado() {
   alert("Autorizado cadastrado com sucesso!");
 }
 
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
-    div.onclick = () => selecionarAutorizado(index);
-    listaDiv.appendChild(div);
-  });
-}
-
-let autorizadoSelecionado = null;
-
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
-    div.onclick = () => selecionarAutorizado(index);
-    listaDiv.appendChild(div);
-  });
-}
-
-function selecionarAutorizado(index) {
-  const itens = document.querySelectorAll("#listaAutorizados .item");
-  itens.forEach((el, i) => {
-    if (i === index) {
-      el.classList.add("selecionado");
-      autorizadoSelecionado = index;
-    } else {
-      el.classList.remove("selecionado");
-    }
-  });
-}
-
-// ===== Editar autorizado =====
 function iniciarEdicaoAut() {
-  if (autorizadoSelecionado === null) {
-    alert("Selecione um autorizado para editar!");
-    return;
-  }
+  if (autorizadoSelecionado === null) { alert("Selecione um autorizado para editar!"); return; }
   const index = autorizadoSelecionado;
   const item = bancoAutorizados[index];
-
   mostrarPopup(`
     <h3>Editar Autorizado</h3>
     <input type="text" id="editNome" value="${item.nome}" placeholder="Nome">
@@ -184,36 +130,27 @@ function confirmarEdicaoAut(index) {
   const nome = document.getElementById("editNome").value;
   const placa = document.getElementById("editPlaca").value;
   const rgcpf = document.getElementById("editRgcpf").value;
-
   if (!nome || !placa || !rgcpf) { alert("Preencha todos os campos!"); return; }
-
   bancoAutorizados[index] = { nome, placa, rgcpf };
   salvarBanco();
   fecharPopup();
   alert("Autorizado editado com sucesso!");
-
-  // Deseleciona o autorizado editado
-  const itens = document.querySelectorAll("#listaAutorizados .item");
-  itens.forEach(el => el.classList.remove("selecionado"));
+  document.querySelectorAll("#listaAutorizados .item").forEach(el => el.classList.remove("selecionado"));
   autorizadoSelecionado = null;
 }
 
-// ===== Excluir autorizado =====
 function iniciarExclusaoAut() {
-  if (autorizadoSelecionado === null) {
-    alert("Selecione um autorizado para excluir!");
-    return;
-  }
+  if (autorizadoSelecionado === null) { alert("Selecione um autorizado para excluir!"); return; }
   const index = autorizadoSelecionado;
-
   if (confirm(`Deseja realmente excluir ${bancoAutorizados[index].nome}?`)) {
     bancoAutorizados.splice(index, 1);
-    autorizadoSelecionado = null; // limpa seleção
+    autorizadoSelecionado = null;
     salvarBanco();
     alert("Autorizado excluído com sucesso!");
   }
 }
 
+// ===== CRUD cadastros =====
 function editarCadastro(index) {
   const item = bancoCadastros[index];
   mostrarPopup(`
@@ -234,9 +171,7 @@ function confirmarEdicaoCad(index) {
   const placa = document.getElementById("editPlacaCad").value;
   const rgcpf = document.getElementById("editRgcpfCad").value;
   const tipo = document.getElementById("editTipoCad").value;
-
   if (!nome || !placa || !rgcpf || !tipo) { alert("Preencha todos os campos!"); return; }
-
   bancoCadastros[index] = { nome, placa, rgcpf, tipo };
   salvarBanco();
   fecharPopup();
@@ -293,13 +228,10 @@ function exportarCSV() {
 function exportarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-
   const tabela = document.getElementById("listaHistorico");
   if (tabela.innerHTML.trim() === "") { alert("Não há dados para exportar!"); return; }
-
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
-
   let y = 20;
   const rows = tabela.querySelectorAll(".item");
   rows.forEach((row) => {
@@ -308,40 +240,82 @@ function exportarPDF() {
     y += 8;
     if (y > 280) { doc.addPage(); y = 20; }
   });
-
   const dataHoje = new Date().toISOString().split("T")[0];
   doc.save(`historico-${dataHoje}.pdf`);
 }
 
-// ===== Enviar e-mail =====
-// ===== Enviar e-mail (Manual via Botão) =====
-function enviarEmail() {
+// ===== Enviar e-mail com Resend =====
+async function enviarEmailResend(manual = false) {
   const hoje = formatarData(new Date());
   const filtered = bancoHistorico.filter(item => item.data === hoje);
 
   if (filtered.length === 0) {
-    alert("Nenhum histórico encontrado para hoje!");
+    if (manual) alert("Nenhum histórico encontrado para hoje!");
     return;
   }
 
-  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
-  filtered.forEach(item => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
+  // Gera PDF
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas - " + hoje, 105, 15, null, null, "center");
+
+  let y = 25;
+  filtered.forEach((item, i) => {
+    doc.setFontSize(11);
+    doc.text(
+      `${i+1}) Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Status: ${item.status} | Entrada: ${item.horarioEntrada || "-"} | Saída: ${item.horarioSaida || "-"}`,
+      10, y
+    );
+    y += 8;
+    if (y > 280) { doc.addPage(); y = 20; }
   });
 
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-    to_email: "leomatos3914@gmail.com",
-    title: "Histórico Diário (Envio Manual)",
-    name: "Sistema de Placas",
-    message: mensagem
-  })
-  .then(() => {
-    alert("📧 Histórico enviado manualmente com sucesso!");
-  })
-  .catch(err => {
-    alert("❌ Erro ao enviar: " + JSON.stringify(err));
-  });
+  const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer re_CwVPZD8e_ETt6qFzphxRCn5AAhLugKtJ9",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "Controle de Placas <onboarding@resend.dev>",
+        to: "leomatos3914@gmail.com",
+        subject: manual ? "Histórico Diário (Envio Manual)" : "Histórico Diário",
+        html: "<p>Segue em anexo o histórico de placas do dia.</p>",
+        attachments: [
+          {
+            filename: `historico-${hoje}.pdf`,
+            content: pdfBase64,
+            type: "application/pdf"
+          }
+        ]
+      })
+    });
+
+    if (response.ok) {
+      if (manual) alert("📧 Histórico enviado manualmente com sucesso!");
+      else console.log("✅ Histórico diário enviado automaticamente!");
+      marcarEnvio();
+    } else {
+      const err = await response.text();
+      alert("❌ Erro ao enviar: " + err);
+    }
+  } catch (err) {
+    alert("❌ Erro ao enviar: " + err.message);
+  }
 }
+
+// Botão manual
+function enviarEmail() { enviarEmailResend(true); }
+// Automático
+function enviarHistoricoDiario() { enviarEmailResend(false); }
+
+// ===== Entrada/Saída de placas =====
+// ... (resto do teu código continua igual até o fim) ...
+
 
 // ===== Entrada/Saída de placas =====
 function verificarPlaca() {
@@ -637,53 +611,7 @@ function marcarEnvio() {
   localStorage.setItem("ultimoEnvio", hoje);
 }
 
-function enviarHistoricoDiario() {
-  const hoje = formatarData(new Date());
-  const filtered = bancoHistorico.filter(item => item.data === hoje);
 
-  if (filtered.length === 0) return; // nada pra enviar
-
-  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
-  filtered.forEach(item => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
-  });
-
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-    to_email: "leomatos3914@gmail.com",
-    message: mensagem,
-    title: "Histórico Diário",
-    name: "Sistema de Placas"
-  }).then(() => {
-    console.log("✅ Histórico do dia enviado por e-mail.");
-    marcarEnvio();
-  }).catch(err => {
-  // mostra o erro direto na tela
-  alert("❌ Erro no envio: " + JSON.stringify(err));
-});
-}
-
-// Verificação ao abrir/recarregar o sistema
-window.addEventListener("load", () => {
-  const agora = new Date();
-  if (
-    !jaEnviouHoje() &&
-    (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))
-  ) {
-    enviarHistoricoDiario();
-  }
-});
-
-// Agendamento automático se estiver aberto no horário
-setInterval(() => {
-  const agora = new Date();
-  if (
-    !jaEnviouHoje() &&
-    agora.getHours() === horaEnvio &&
-    agora.getMinutes() === minutoEnvio
-  ) {
-    enviarHistoricoDiario();
-  }
-}, 60000);
 
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
