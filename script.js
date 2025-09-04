@@ -269,6 +269,8 @@ function exportarPDF(dataHoje) {
 
 
 function enviarPDFManual() {
+// Atualiza a lista do histórico
+  filtrarHistorico();
 
 // Pega a data do filtro (ou hoje, se vazio)
 const input = document.getElementById("dataFiltro")?.value;
