@@ -83,6 +83,7 @@ function selecionarCadastro(index) {
   }
 }
 
+
 function atualizarTabelaAndamento() {
   const tbody = document.getElementById("tabelaAndamento");
   tbody.innerHTML = "";
@@ -250,6 +251,10 @@ function exportarPDF() {
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
   let y = 20;
+
+
+
+
   const rows = tabela.querySelectorAll(".item");
   rows.forEach((row) => {
     doc.setFontSize(12);
@@ -265,36 +270,38 @@ function exportarPDF() {
   return pdfBlob;
 }
 
+
 function enviarPDFManual() {
-  filtrarHistorico(); // garante que a div está preenchida
   const pdfBlob = exportarPDF();
   if (!pdfBlob) return;
 
-  // Converte Blob para Base64
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const base64 = e.target.result.split(",")[1]; // remove o prefixo "data:application/pdf;base64,"
-    
-    const templateParams = {
-      to_email: "histplacas@gmail.com",
-      title: "Histórico Diário (PDF Manual)",
-      name: "Sistema de Placas",
-      message: "Segue o histórico em PDF.",
-      attachment: [
-        {
-          name: "historico.pdf",
-          data: base64,
-          type: "application/pdf"
-        }
-      ]
-    };
 
-    emailjs.send("service_t9bocqh", "template_n4uw7xi", templateParams, "vPVpXFO3k8QblVbqr")
-      .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
-      .catch(err => alert("❌ Erro ao enviar: " + err));
-  };
-  reader.readAsDataURL(pdfBlob);
+
+
+
+
+
+
+
+  const formData = new FormData();
+  formData.append("service_id", "service_t9bocqh");
+  formData.append("template_id", "template_n4uw7xi");
+  formData.append("user_id", "vPVpXFO3k8QblVbqr");
+  formData.append("to_email", "histplacas@gmail.com");
+  formData.append("title", "Histórico Diário (PDF Manual)");
+  formData.append("name", "Sistema de Placas");
+  formData.append("message", "Segue o histórico em PDF.");
+  formData.append("files[]", pdfBlob, "historico.pdf"); // ✅ anexo real
+
+  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.text())
+  .then(res => alert("📧 PDF enviado manualmente com sucesso!"))
+  .catch(err => alert("❌ Erro ao enviar: " + err));
 }
+
 
 
 // ===== Entrada/Saída de placas =====
@@ -455,6 +462,7 @@ function limparTudo() {
   } else if (senha !== null) { alert("Senha incorreta ❌"); }
 }
 
+
 // ===== EXPORTAÇÃO LOCALSTORAGE =====
 function exportLocalStorage() {
     return JSON.stringify({
@@ -534,22 +542,26 @@ importInput.addEventListener("change", (event) => {
 });
 
 
-// ===== FUNÇÃO DE CHECAGEM AUTOMÁTICA DIÁRIA =====
-function verificarEnvioAutomatico() {
-  const agora = new Date();
-  const hoje = formatarData(agora); // data do dia atual no formato dd/mm/yyyy
+// ===== CONFIGURAÇÃO DE HORÁRIO =====
+const horaEnvio = 23;
+const minutoEnvio = 59;
 
-  // Pega histórico do dia atual
-  const historicoDoDia = bancoHistorico.filter(h => h.data === hoje);
-
-  // Se já enviou hoje ou não há registros, não faz nada
-  if (jaEnviouData(hoje) || historicoDoDia.length === 0) return;
-
-  // Envia PDF do dia
-  enviarPDFAutomaticoPorData(hoje);
+// Verifica se já enviou um dia específico
+function jaEnviouData(data) {
+  const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
+  return enviados.includes(data);
 }
 
-// ===== FUNÇÃO DE ENVIO AUTOMÁTICO COM MARCAÇÃO =====
+// Marca que enviou um dia específico
+function marcarEnvioData(data) {
+  let enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
+  if (!enviados.includes(data)) {
+    enviados.push(data);
+    localStorage.setItem("enviosPDF", JSON.stringify(enviados));
+  }
+}
+
+// Envia PDF de um dia específico e apaga do histórico
 function enviarPDFAutomaticoPorData(data) {
   const historicoDoDia = bancoHistorico.filter(h => h.data === data);
   if (historicoDoDia.length === 0) return;
@@ -558,6 +570,10 @@ function enviarPDFAutomaticoPorData(data) {
   const doc = new jsPDF();
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+
+
+
 
   let y = 20;
   historicoDoDia.forEach(item => {
@@ -570,62 +586,65 @@ function enviarPDFAutomaticoPorData(data) {
 
   const pdfBlob = doc.output("blob");
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const base64 = e.target.result.split(",")[1];
-    const templateParams = {
-      to_email: "histplacas@gmail.com",
-      title: `Histórico Diário (${data})`,
-      name: "Sistema de Placas",
-      message: "Segue o histórico diário em PDF.",
-      attachment: [
-        { name: "historico.pdf", data: base64, type: "application/pdf" }
-      ]
-    };
+  const formData = new FormData();
+  formData.append("service_id", "service_t9bocqh");
+  formData.append("template_id", "template_n4uw7xi");
+  formData.append("user_id", "vPVpXFO3k8QblVbqr");
+  formData.append("to_email", "romeikebeauty@gmail.com");
+  formData.append("title", `Histórico Diário (${data})`);
+  formData.append("name", "Sistema de Placas");
+  formData.append("message", "Segue o histórico diário em PDF.");
+  formData.append("files[]", pdfBlob, "historico.pdf");
 
-    emailjs.send("service_t9bocqh", "template_n4uw7xi", templateParams, "vPVpXFO3k8QblVbqr")
-      .then(() => {
-        marcarEnvioData(data);
-        atualizarTabelaAndamento();
-        filtrarHistorico();
-      })
-      .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
-  };
-  reader.readAsDataURL(pdfBlob);
+  fetch("https://api.emailjs.com/api/v1.0/email/send-form", { method: "POST", body: formData })
+    .then(() => {
+      console.log(`✅ PDF do dia ${data} enviado!`);
+
+      // Marca que já enviou
+      marcarEnvioData(data);
+
+      // Remove do histórico os registros do dia enviado
+      bancoHistorico = bancoHistorico.filter(h => h.data !== data);
+      localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
+
+      // Atualiza a tela
+      atualizarTabelaAndamento();
+      filtrarHistorico();
+    })
+    .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
 }
 
-// ===== FUNÇÕES DE CONTROLE DE ENVIO =====
-function jaEnviouData(data) {
-  const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  return enviados.includes(data);
-}
+// ===== FUNÇÃO DE CHECAGEM DIÁRIA =====
+function verificarEnvioAutomatico() {
+  const agora = new Date();
+  const hoje = formatarData(agora);
+  const ontem = formatarData(new Date(agora.getTime() - 24 * 60 * 60 * 1000));
 
-function marcarEnvioData(data) {
-  let enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  if (!enviados.includes(data)) {
-    enviados.push(data);
-    localStorage.setItem("enviosPDF", JSON.stringify(enviados));
+  // Se não enviou ontem e há histórico, envia
+  if (!jaEnviouData(ontem)) {
+    enviarPDFAutomaticoPorData(ontem);
+  }
+
+  // Se já passou da hora de hoje e não enviou, envia hoje
+  if (!jaEnviouData(hoje) && (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))) {
+    enviarPDFAutomaticoPorData(hoje);
   }
 }
 
-// ===== CHECAGEM AUTOMÁTICA =====
-// Verifica a cada minuto para não perder o disparo
-setInterval(verificarEnvioAutomatico, 60 * 1000);
+// ===== EXECUTA AO ABRIR O APP =====
+window.addEventListener("load", () => {
+  verificarEnvioAutomatico();
+});
 
-// Também checa no carregamento da página
-window.addEventListener("load", verificarEnvioAutomatico);
+// ===== CHECAGEM INTERVALO (a cada minuto) =====
+setInterval(() => {
+  const agora = new Date();
+  if (agora.getHours() === horaEnvio && agora.getMinutes() === minutoEnvio) {
+    verificarEnvioAutomatico();
+  }
+}, 60000);
 
-function testeEnvioAutomatico() {
-  // Cria registros fictícios do dia de hoje
-  const hoje = formatarData(new Date());
-  
-  bancoHistorico.push(
-    { nome: "Teste1", placa: "AAA1111", rgcpf: "123456", tipo: "Despacho", status: "Finalizado", data: hoje, horarioEntrada: "08:00:00", horarioSaida: "10:00:00" },
-    { nome: "Teste2", placa: "BBB2222", rgcpf: "654321", tipo: "Retiro", status: "Em andamento", data: hoje, horarioEntrada: "09:00:00", horarioSaida: "" }
-  );
 
-  salvarBanco(); // Atualiza localStorage
-
-  // Força o envio do PDF do dia
-  enviarPDFAutomaticoPorData(hoje);
-}
+// ===== Inicialização =====
+mostrarPagina('inicioContainer');
+salvarBanco();
