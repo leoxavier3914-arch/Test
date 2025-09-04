@@ -290,30 +290,30 @@ function exportarCSV() {
 }
 
 // ===== Exportação PDF =====
-function exportarPDF() {
+function exportarPDF(dataDesejada = null) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  const tabela = document.getElementById("listaHistorico");
-  if (tabela.innerHTML.trim() === "") { alert("Não há dados para exportar!"); return null; }
+  const dataFiltro = dataDesejada || formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === dataFiltro);
+
+  if (filtered.length === 0) {
+    alert("Não há dados para exportar nessa data!");
+    return null;
+  }
 
   doc.setFontSize(14);
-  doc.text("Histórico de Placas", 105, 15, null, null, "center");
+  doc.text(`Histórico de Placas - ${dataFiltro}`, 105, 15, null, null, "center");
 
-  let y = 20;
-  const rows = tabela.querySelectorAll(".item");
-  rows.forEach((row) => {
-    doc.setFontSize(12);
-    doc.text(row.innerText.split("\n").join(" | "), 10, y);
+  let y = 25;
+  doc.setFontSize(12);
+  filtered.forEach(item => {
+    doc.text(`Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Status: ${item.status} | Entrada: ${item.horarioEntrada || "-"} | Saída: ${item.horarioSaida || "-"}`, 10, y);
     y += 8;
     if (y > 280) { doc.addPage(); y = 20; }
   });
 
-  const dataHoje = new Date().toISOString().split("T")[0];
-  const filename = `historico-${dataHoje}.pdf`;
-
-
-  const pdfBlob = doc.output("blob"); // retorna blob para envio
+  const pdfBlob = doc.output("blob");
   return pdfBlob;
 }
 
@@ -624,43 +624,23 @@ importInput.addEventListener("change", (event) => {
 const horaEnvio = 18;
 const minutoEnvio = 30;
 
-// Verifica se já enviou hoje
-function jaEnviouHoje() {
+// Verifica se já enviou ontem
+function jaEnviouOntem() {
   const ultimoEnvio = localStorage.getItem("ultimoEnvio");
-  const hoje = formatarData(new Date());
-  return ultimoEnvio === hoje;
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const dataOntem = formatarData(ontem);
+  return ultimoEnvio === dataOntem;
 }
 
-// Salva que já enviou hoje
-function marcarEnvio() {
-  const hoje = formatarData(new Date());
-  localStorage.setItem("ultimoEnvio", hoje);
+// marca se ja enviou
+function marcarEnvioOntem() {
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const dataOntem = formatarData(ontem);
+  localStorage.setItem("ultimoEnvio", dataOntem);
 }
 
-function enviarHistoricoDiario() {
-  const hoje = formatarData(new Date());
-  const filtered = bancoHistorico.filter(item => item.data === hoje);
-
-  if (filtered.length === 0) return; // nada pra enviar
-
-  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
-  filtered.forEach(item => {
-    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
-  });
-
-  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-    to_email: "leomatos3914@gmail.com",
-    message: mensagem,
-    title: "Histórico Diário",
-    name: "Sistema de Placas"
-  }).then(() => {
-    console.log("✅ Histórico do dia enviado por e-mail.");
-    marcarEnvio();
-  }).catch(err => {
-  // mostra o erro direto na tela
-  alert("❌ Erro no envio: " + JSON.stringify(err));
-});
-}
 
 // Verificação ao abrir/recarregar o sistema
 window.addEventListener("load", () => {
@@ -673,38 +653,50 @@ window.addEventListener("load", () => {
   }
 });
 
-function enviarPDFAutomático() {
-  const pdfBlob = exportarPDF();
-  if (!pdfBlob) return;
+function enviarHistoricoDiario() {
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(hoje.getDate() - 1);
+
+  const dataOntem = formatarData(ontem);
+
+  // Se já enviou, não faz nada
+  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
+  if (ultimoEnvio === dataOntem) return;
+
+  // Gera o PDF do dia anterior
+  const pdfBlob = exportarPDF(dataOntem);
+  if (!pdfBlob) return; // sem histórico, não envia
 
   const reader = new FileReader();
   reader.onload = function() {
     const pdfBase64 = reader.result.split(',')[1];
+
     emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-  to_email: "leomatos3914@gmail.com",
-  title: "Histórico Diário (PDF Automático)",
-  name: "Sistema de Placas",
- attachment: `data:application/pdf;base64,${pdfBase64}`
-})
-.then(() => {
-      console.log("✅ PDF enviado automaticamente!");
-      localStorage.setItem("ultimoEnvio", formatarData(new Date()));
-    }).catch(err => console.error(err));
+      to_email: "leomatos3914@gmail.com",
+      title: `Histórico Diário - ${dataOntem}`,
+      name: "Sistema de Placas",
+      attachment: `data:application/pdf;base64,${pdfBase64}`
+    })
+    .then(() => {
+      console.log(`✅ PDF do dia ${dataOntem} enviado com sucesso!`);
+      localStorage.setItem("ultimoEnvio", dataOntem); // marca como enviado
+    })
+    .catch(err => console.error("❌ Erro ao enviar PDF:", err));
   };
+
   reader.readAsDataURL(pdfBlob);
 }
-setInterval(() => {
-  const agora = new Date();
-  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
-  const hoje = formatarData(new Date());
 
-  if (ultimoEnvio !== hoje && agora.getHours() === 18 && agora.getMinutes() === 30) {
-    enviarPDFAutomático();
-  }
-}, 60000);
+setInterval(() => {
+  enviarHistoricoDiario();
+}, 60000); // verifica a cada minuto
+
 
 
 // ===== Inicialização =====
-mostrarPagina('inicioContainer');
-salvarBanco();
-window.addEventListener("load", checarExportacaoAutomaticaPDF);
+window.addEventListener("load", () => {
+  checarExportacaoAutomaticaPDF();
+  enviarHistoricoDiario();
+});
+
