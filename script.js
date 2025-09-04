@@ -331,7 +331,8 @@ function enviarPDFManual() {
       title: "Histórico Diário (PDF Manual)",
       name: "Sistema de Placas",
       message: "Segue o histórico em PDF.",
-      attachment: pdfBase64   // <-- aqui vai direto
+ attachment: `data:application/pdf;base64,${pdfBase64}`
+
     })
     .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
     .catch(err => alert("❌ Erro ao enviar: " + JSON.stringify(err)));
@@ -680,16 +681,10 @@ function enviarPDFAutomático() {
   reader.onload = function() {
     const pdfBase64 = reader.result.split(',')[1];
     emailjs.send("service_t9bocqh", "template_n4uw7xi", {
-  to_email: "seuemail@gmail.com",
+  to_email: "leomatos3914@gmail.com",
   title: "Histórico Diário (PDF Automático)",
   name: "Sistema de Placas",
-  attachment: [
-    {
-      name: "historico.pdf",
-      data: pdfBase64,
-      type: "application/pdf"
-    }
-  ]
+ attachment: `data:application/pdf;base64,${pdfBase64}`
 })
 .then(() => {
       console.log("✅ PDF enviado automaticamente!");
