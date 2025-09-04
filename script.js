@@ -269,16 +269,8 @@ function exportarPDF(dataHoje) {
 
 
 function enviarPDFManual() {
-// Atualiza a lista do histórico
-  filtrarHistorico();
-
-// Pega a data do filtro (ou hoje, se vazio)
-const input = document.getElementById("dataFiltro")?.value;
-const dataHistorico = input ? converterDataInput(input) : formatarData(new Date());
-
 // Gera o PDF usando a data do histórico
 const pdfBlob = exportarPDF(dataHistorico);
-
 
  if (!pdfBlob) return;
 
@@ -642,6 +634,51 @@ setInterval(() => {
     verificarEnvioAutomatico();
   }
 }, 60000);
+
+// Cria input de pesquisa
+const pesquisaInput = document.createElement("input");
+pesquisaInput.type = "text";
+pesquisaInput.placeholder = "Pesquisar por placa ou nome...";
+pesquisaInput.id = "pesquisaAut";
+pesquisaInput.style = "padding:5px; margin-bottom:5px; width:95%;";
+
+// Adiciona acima da lista de autorizados
+const containerAut = document.getElementById("listaAutorizados");
+containerAut.parentNode.insertBefore(pesquisaInput, containerAut);
+
+// Evento de digitação
+pesquisaInput.addEventListener("input", atualizarAutorizadosFiltrados);
+
+
+function atualizarAutorizadosFiltrados() {
+  const filtro = document.getElementById("pesquisaAut").value.toLowerCase();
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  // Filtra por nome ou placa
+  let filtrados = bancoAutorizados.filter(item =>
+    item.nome.toLowerCase().includes(filtro) || item.placa.toLowerCase().includes(filtro)
+  );
+
+  // Ordena por placa primeiro, depois por nome
+  filtrados.sort((a, b) => {
+    if (a.placa < b.placa) return -1;
+    if (a.placa > b.placa) return 1;
+    if (a.nome < b.nome) return -1;
+    if (a.nome > b.nome) return 1;
+    return 0;
+  });
+
+  // Atualiza a lista
+  filtrados.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarAutorizado(index);
+    listaDiv.appendChild(div);
+  });
+}
+
 
 
 // ===== Inicialização =====
