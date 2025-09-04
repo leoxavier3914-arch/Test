@@ -527,27 +527,22 @@ importInput.addEventListener("change", (event) => {
 });
 
 
-// ===== CONFIGURAÇÃO DE HORÁRIO =====
-const horaEnvio = 23;
-const minutoEnvio = 59;
+// ===== FUNÇÃO DE CHECAGEM AUTOMÁTICA DIÁRIA =====
+function verificarEnvioAutomatico() {
+  const agora = new Date();
+  const hoje = formatarData(agora); // data do dia atual no formato dd/mm/yyyy
 
-// Verifica se já enviou um dia específico
-function jaEnviouData(data) {
-  const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  return enviados.includes(data);
+  // Pega histórico do dia atual
+  const historicoDoDia = bancoHistorico.filter(h => h.data === hoje);
 
+  // Se já enviou hoje ou não há registros, não faz nada
+  if (jaEnviouData(hoje) || historicoDoDia.length === 0) return;
+
+  // Envia PDF do dia
+  enviarPDFAutomaticoPorData(hoje);
 }
 
-// Marca que enviou um dia específico
-function marcarEnvioData(data) {
-  let enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  if (!enviados.includes(data)) {
-    enviados.push(data);
-    localStorage.setItem("enviosPDF", JSON.stringify(enviados));
-  }
-}
-
-// Envia PDF de um dia específico e apaga do histórico
+// ===== FUNÇÃO DE ENVIO AUTOMÁTICO COM MARCAÇÃO =====
 function enviarPDFAutomaticoPorData(data) {
   const historicoDoDia = bancoHistorico.filter(h => h.data === data);
   if (historicoDoDia.length === 0) return;
@@ -582,10 +577,10 @@ function enviarPDFAutomaticoPorData(data) {
     .then(() => {
       console.log(`✅ PDF do dia ${data} enviado!`);
 
-      // Marca que já enviou
+      // Marca que já enviou o dia
       marcarEnvioData(data);
 
-      // Remove do histórico os registros do dia enviado
+      // Remove os registros enviados do histórico
       bancoHistorico = bancoHistorico.filter(h => h.data !== data);
       localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
 
@@ -596,8 +591,38 @@ function enviarPDFAutomaticoPorData(data) {
     .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
 }
 
-// ===== FUNÇÃO DE CHECAGEM DIÁRIA =====
-function verificarEnvioAutomatico() {
-  const agora = new Date();
-  const hoje = formatarData(agora);
-  const ontem = formatarData(new Date(agora.getTime() - 24 * 60 * 60 * 1000));
+// ===== FUNÇÕES DE CONTROLE DE ENVIO =====
+function jaEnviouData(data) {
+  const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
+  return enviados.includes(data);
+}
+
+function marcarEnvioData(data) {
+  let enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
+  if (!enviados.includes(data)) {
+    enviados.push(data);
+    localStorage.setItem("enviosPDF", JSON.stringify(enviados));
+  }
+}
+
+// ===== CHECAGEM AUTOMÁTICA =====
+// Verifica a cada minuto para não perder o disparo
+setInterval(verificarEnvioAutomatico, 60 * 1000);
+
+// Também checa no carregamento da página
+window.addEventListener("load", verificarEnvioAutomatico);
+
+function testeEnvioAutomatico() {
+  // Cria registros fictícios do dia de hoje
+  const hoje = formatarData(new Date());
+  
+  bancoHistorico.push(
+    { nome: "Teste1", placa: "AAA1111", rgcpf: "123456", tipo: "Despacho", status: "Finalizado", data: hoje, horarioEntrada: "08:00:00", horarioSaida: "10:00:00" },
+    { nome: "Teste2", placa: "BBB2222", rgcpf: "654321", tipo: "Retiro", status: "Em andamento", data: hoje, horarioEntrada: "09:00:00", horarioSaida: "" }
+  );
+
+  salvarBanco(); // Atualiza localStorage
+
+  // Força o envio do PDF do dia
+  enviarPDFAutomaticoPorData(hoje);
+}
