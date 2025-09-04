@@ -84,6 +84,22 @@ function selecionarCadastro(index) {
 }
 
 
+
+
+function atualizarAutorizados() {
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    listaDiv.innerHTML += `
+      <div class="item">
+        <input type="radio" name="selecionadoAut" value="${index}" id="aut${index}">
+        <label for="aut${index}"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</label>
+      </div>
+    `;
+  });
+}
+
 function atualizarTabelaAndamento() {
   const tbody = document.getElementById("tabelaAndamento");
   tbody.innerHTML = "";
@@ -120,6 +136,19 @@ function atualizarAutorizados() {
 }
 
 let autorizadoSelecionado = null;
+
+function atualizarAutorizados() {
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+    div.onclick = () => selecionarAutorizado(index);
+    listaDiv.appendChild(div);
+  });
+}
 
 function selecionarAutorizado(index) {
   const itens = document.querySelectorAll("#listaAutorizados .item");
@@ -238,6 +267,27 @@ function filtrarHistorico() {
   });
 }
 
+// ===== Exportação CSV =====
+function exportarCSV() {
+  const dataFiltro = document.getElementById("dataFiltro").value;
+  const dataTexto = dataFiltro ? converterDataInput(dataFiltro) : formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === dataTexto);
+  if (filtered.length === 0) { alert("Nenhum dado para exportar."); return; }
+
+  let csv = "Placa,Nome,Tipo,RG/CPF,Data,Status,Entrada,Saída\n";
+  filtered.forEach(item => {
+    csv += `${item.placa},${item.nome},${item.tipo},${item.rgcpf},${item.data},${item.status},${item.horarioEntrada || '-'},${item.horarioSaida || '-'}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `historico-${dataTexto}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  alert("Exportado com sucesso!");
+}
 
 // ===== Exportação PDF =====
 function exportarPDF() {
@@ -251,10 +301,6 @@ function exportarPDF() {
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
   let y = 20;
-
-
-
-
   const rows = tabela.querySelectorAll(".item");
   rows.forEach((row) => {
     doc.setFontSize(12);
@@ -266,6 +312,7 @@ function exportarPDF() {
   const dataHoje = new Date().toISOString().split("T")[0];
   const filename = `historico-${dataHoje}.pdf`;
 
+
   const pdfBlob = doc.output("blob"); // retorna blob para envio
   return pdfBlob;
 }
@@ -275,31 +322,22 @@ function enviarPDFManual() {
   const pdfBlob = exportarPDF();
   if (!pdfBlob) return;
 
+  const reader = new FileReader();
+  reader.onload = function() {
+    const pdfBase64 = reader.result.split(',')[1]; // pega só o Base64
 
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+      to_email: "histplacas@gmail.com",
+      title: "Histórico Diário (PDF Manual)",
+      name: "Sistema de Placas",
+      message: "Segue o histórico em PDF.",
+      attachment: pdfBase64   // <-- aqui vai direto
+    })
+    .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
+    .catch(err => alert("❌ Erro ao enviar: " + JSON.stringify(err)));
 
-
-
-
-
-
-
-  const formData = new FormData();
-  formData.append("service_id", "service_t9bocqh");
-  formData.append("template_id", "template_n4uw7xi");
-  formData.append("user_id", "vPVpXFO3k8QblVbqr");
-  formData.append("to_email", "histplacas@gmail.com");
-  formData.append("title", "Histórico Diário (PDF Manual)");
-  formData.append("name", "Sistema de Placas");
-  formData.append("message", "Segue o histórico em PDF.");
-  formData.append("files[]", pdfBlob, "historico.pdf"); // ✅ anexo real
-
-  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.text())
-  .then(res => alert("📧 PDF enviado manualmente com sucesso!"))
-  .catch(err => alert("❌ Erro ao enviar: " + err));
+  };
+  reader.readAsDataURL(pdfBlob);
 }
 
 
@@ -462,6 +500,45 @@ function limparTudo() {
   } else if (senha !== null) { alert("Senha incorreta ❌"); }
 }
 
+// ===== Exportação automática 24h =====
+function checarExportacaoAutomaticaPDF() {
+  const agora = new Date();
+  const ultimaExportacao = localStorage.getItem("ultimaExportacao");
+  let dataInicio;
+
+  if (ultimaExportacao) {
+    const ultima = new Date(ultimaExportacao);
+    const diff = agora - ultima;
+    const horas24 = 24 * 60 * 60 * 1000;
+    if (diff >= horas24) { dataInicio = ultima; } else { return; }
+  } else { dataInicio = new Date(agora.getTime() - 24 * 60 * 60 * 1000); }
+
+  const historicoFiltrado = bancoHistorico.filter(item => {
+    const [dia, mes, ano] = item.data.split("/").map(Number);
+    const dataItem = new Date(ano, mes - 1, dia);
+    return dataItem > dataInicio;
+  });
+
+  if (historicoFiltrado.length === 0) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+  let y = 25;
+  doc.setFontSize(12);
+  historicoFiltrado.forEach(item => {
+    doc.text(`Placa: ${item.placa} | Nome: ${item.nome} | Tipo: ${item.tipo} | RG/CPF: ${item.rgcpf} | Data: ${item.data} | Status: ${item.status}`, 10, y);
+    y += 8;
+    if (y > 280) { doc.addPage(); y = 20; }
+  });
+
+  const dataHoje = new Date().toISOString().split("T")[0];
+  doc.save(`historico-${dataHoje}.pdf`);
+  localStorage.setItem("ultimaExportacao", agora.toISOString());
+  console.log("Exportação automática em PDF realizada!");
+}
 
 // ===== EXPORTAÇÃO LOCALSTORAGE =====
 function exportLocalStorage() {
@@ -542,105 +619,92 @@ importInput.addEventListener("change", (event) => {
 });
 
 
-// ===== CONFIGURAÇÃO DE HORÁRIO =====
-const horaEnvio = 23;
-const minutoEnvio = 59;
+// Horário configurado para envio (pode mudar aqui)
+const horaEnvio = 18;
+const minutoEnvio = 30;
 
-// Verifica se já enviou um dia específico
-function jaEnviouData(data) {
-  const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  return enviados.includes(data);
+// Verifica se já enviou hoje
+function jaEnviouHoje() {
+  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
+  const hoje = formatarData(new Date());
+  return ultimoEnvio === hoje;
 }
 
-// Marca que enviou um dia específico
-function marcarEnvioData(data) {
-  let enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
-  if (!enviados.includes(data)) {
-    enviados.push(data);
-    localStorage.setItem("enviosPDF", JSON.stringify(enviados));
-  }
+// Salva que já enviou hoje
+function marcarEnvio() {
+  const hoje = formatarData(new Date());
+  localStorage.setItem("ultimoEnvio", hoje);
 }
 
-// Envia PDF de um dia específico e apaga do histórico
-function enviarPDFAutomaticoPorData(data) {
-  const historicoDoDia = bancoHistorico.filter(h => h.data === data);
-  if (historicoDoDia.length === 0) return;
+function enviarHistoricoDiario() {
+  const hoje = formatarData(new Date());
+  const filtered = bancoHistorico.filter(item => item.data === hoje);
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(14);
-  doc.text("Histórico de Placas", 105, 15, null, null, "center");
+  if (filtered.length === 0) return; // nada pra enviar
 
-
-
-
-
-  let y = 20;
-  historicoDoDia.forEach(item => {
-    const texto = `${item.placa} | ${item.nome} | ${item.tipo} | ${item.status} | Entrada: ${item.horarioEntrada || "-"} | Saída: ${item.horarioSaida || "-"}`;
-    doc.setFontSize(12);
-    doc.text(texto, 10, y);
-    y += 8;
-    if (y > 280) { doc.addPage(); y = 20; }
+  let mensagem = "📌 Histórico de Placas - " + hoje + "\n\n";
+  filtered.forEach(item => {
+    mensagem += `🚗 Placa: ${item.placa} | 👤 Nome: ${item.nome} | 🏷 Tipo: ${item.tipo} | 🆔 RG/CPF: ${item.rgcpf} | 📍 Status: ${item.status} | ⏰ Entrada: ${item.horarioEntrada || "-"} | ⏱ Saída: ${item.horarioSaida || "-"}\n`;
   });
 
-  const pdfBlob = doc.output("blob");
-
-  const formData = new FormData();
-  formData.append("service_id", "service_t9bocqh");
-  formData.append("template_id", "template_n4uw7xi");
-  formData.append("user_id", "vPVpXFO3k8QblVbqr");
-  formData.append("to_email", "romeikebeauty@gmail.com");
-  formData.append("title", `Histórico Diário (${data})`);
-  formData.append("name", "Sistema de Placas");
-  formData.append("message", "Segue o histórico diário em PDF.");
-  formData.append("files[]", pdfBlob, "historico.pdf");
-
-  fetch("https://api.emailjs.com/api/v1.0/email/send-form", { method: "POST", body: formData })
-    .then(() => {
-      console.log(`✅ PDF do dia ${data} enviado!`);
-
-      // Marca que já enviou
-      marcarEnvioData(data);
-
-      // Remove do histórico os registros do dia enviado
-      bancoHistorico = bancoHistorico.filter(h => h.data !== data);
-      localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
-
-      // Atualiza a tela
-      atualizarTabelaAndamento();
-      filtrarHistorico();
-    })
-    .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
+  emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+    to_email: "leomatos3914@gmail.com",
+    message: mensagem,
+    title: "Histórico Diário",
+    name: "Sistema de Placas"
+  }).then(() => {
+    console.log("✅ Histórico do dia enviado por e-mail.");
+    marcarEnvio();
+  }).catch(err => {
+  // mostra o erro direto na tela
+  alert("❌ Erro no envio: " + JSON.stringify(err));
+});
 }
 
-// ===== FUNÇÃO DE CHECAGEM DIÁRIA =====
-function verificarEnvioAutomatico() {
-  const agora = new Date();
-  const hoje = formatarData(agora);
-  const ontem = formatarData(new Date(agora.getTime() - 24 * 60 * 60 * 1000));
-
-  // Se não enviou ontem e há histórico, envia
-  if (!jaEnviouData(ontem)) {
-    enviarPDFAutomaticoPorData(ontem);
-  }
-
-  // Se já passou da hora de hoje e não enviou, envia hoje
-  if (!jaEnviouData(hoje) && (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))) {
-    enviarPDFAutomaticoPorData(hoje);
-  }
-}
-
-// ===== EXECUTA AO ABRIR O APP =====
+// Verificação ao abrir/recarregar o sistema
 window.addEventListener("load", () => {
-  verificarEnvioAutomatico();
+  const agora = new Date();
+  if (
+    !jaEnviouHoje() &&
+    (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))
+  ) {
+    enviarHistoricoDiario();
+  }
 });
 
-// ===== CHECAGEM INTERVALO (a cada minuto) =====
+function enviarPDFAutomático() {
+  const pdfBlob = exportarPDF();
+  if (!pdfBlob) return;
+
+  const reader = new FileReader();
+  reader.onload = function() {
+    const pdfBase64 = reader.result.split(',')[1];
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", {
+  to_email: "seuemail@gmail.com",
+  title: "Histórico Diário (PDF Automático)",
+  name: "Sistema de Placas",
+  attachment: [
+    {
+      name: "historico.pdf",
+      data: pdfBase64,
+      type: "application/pdf"
+    }
+  ]
+})
+.then(() => {
+      console.log("✅ PDF enviado automaticamente!");
+      localStorage.setItem("ultimoEnvio", formatarData(new Date()));
+    }).catch(err => console.error(err));
+  };
+  reader.readAsDataURL(pdfBlob);
+}
 setInterval(() => {
   const agora = new Date();
-  if (agora.getHours() === horaEnvio && agora.getMinutes() === minutoEnvio) {
-    verificarEnvioAutomatico();
+  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
+  const hoje = formatarData(new Date());
+
+  if (ultimoEnvio !== hoje && agora.getHours() === 18 && agora.getMinutes() === 30) {
+    enviarPDFAutomático();
   }
 }, 60000);
 
@@ -648,3 +712,4 @@ setInterval(() => {
 // ===== Inicialização =====
 mostrarPagina('inicioContainer');
 salvarBanco();
+window.addEventListener("load", checarExportacaoAutomaticaPDF);
