@@ -240,7 +240,7 @@ function filtrarHistorico() {
 
 
 // ===== Exportação PDF =====
-function exportarPDF() {
+function exportarPDF(dataHoje) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -250,7 +250,11 @@ function exportarPDF() {
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
-  let y = 20;
+  // Título com data e horário
+  doc.setFontSize(12);
+  doc.text(`Data: ${dataHoje} | Horário: 00:00 até 23:59`, 105, 22, null, null, "center");
+
+  let y = 30;
   const rows = tabela.querySelectorAll(".item");
   rows.forEach((row) => {
     doc.setFontSize(12);
@@ -259,16 +263,22 @@ function exportarPDF() {
     if (y > 280) { doc.addPage(); y = 20; }
   });
 
-  const dataHoje = new Date().toISOString().split("T")[0];
-  const filename = `historico-${dataHoje}.pdf`;
-
   const pdfBlob = doc.output("blob"); // retorna blob para envio
   return pdfBlob;
 }
 
+
 function enviarPDFManual() {
-  const pdfBlob = exportarPDF();
-  if (!pdfBlob) return;
+
+// Pega a data do filtro (ou hoje, se vazio)
+const input = document.getElementById("dataFiltro")?.value;
+const dataHistorico = input ? converterDataInput(input) : formatarData(new Date());
+
+// Gera o PDF usando a data do histórico
+const pdfBlob = exportarPDF(dataHistorico);
+
+
+ if (!pdfBlob) return;
 
   const formData = new FormData();
   formData.append("service_id", "service_t9bocqh");
@@ -557,6 +567,10 @@ function enviarPDFAutomaticoPorData(data) {
   const doc = new jsPDF();
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
+
+  // Título com data e horário
+  doc.setFontSize(12);
+  doc.text(`Data: ${data} | Horário: 00:00 até 23:59`, 105, 22, null, null, "center");
 
   let y = 20;
   historicoDoDia.forEach(item => {
