@@ -634,5 +634,7 @@ function enviarPDFDiaAnteriorSeNecessario() {
 
 // ===== Dispara apenas ao abrir o app =====
 window.addEventListener("load", () => {
-  enviarPDFDiaAnteriorSeNecessario();
+  mostrarPagina("inicioContainer");
+  enviarPDFDiaAnteriorSeNecessario(); // envio imediato
+  setInterval(enviarPDFDiaAnteriorSeNecessario, 60 * 1000); // checagem contínua
 });
