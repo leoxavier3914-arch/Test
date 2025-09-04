@@ -296,6 +296,7 @@ function enviarPDFManual() {
   reader.readAsDataURL(pdfBlob);
 }
 
+
 // ===== Entrada/Saída de placas =====
 function verificarPlaca() {
   const placaInput = document.getElementById("placaInput");
