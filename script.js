@@ -108,6 +108,7 @@ function adicionarAutorizado() {
 
 
 function atualizarAutorizados() {
+  filtrarAutorizados(); // agora usa o filtro atual (input pode estar vazio)
   const listaDiv = document.getElementById("listaAutorizados");
   listaDiv.innerHTML = "";
 
@@ -159,13 +160,102 @@ function confirmarEdicaoAut(index) {
 
   bancoAutorizados[index] = { nome, placa, rgcpf };
   salvarBanco();
-  fecharPopup();
-  alert("Autorizado editado com sucesso!");
+// ===== Variáveis globais =====
+let autorizadoSelecionado = null;
 
-  // Deseleciona o autorizado editado
+// ===== Atualizar lista de autorizados =====
+function atualizarAutorizados() {
+  filtrarAutorizados(); // já faz a renderização com filtro
+}
+
+// ===== Filtrar autorizados =====
+function filtrarAutorizados() {
+  const filtro = document.getElementById("pesquisaAut").value.toLowerCase();
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    const texto = `${item.nome} ${item.placa} ${item.rgcpf}`.toLowerCase();
+    if (texto.includes(filtro)) {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+      div.onclick = () => selecionarAutorizado(index);
+      listaDiv.appendChild(div);
+    }
+  });
+}
+
+// ===== Selecionar autorizado =====
+function selecionarAutorizado(index) {
   const itens = document.querySelectorAll("#listaAutorizados .item");
-  itens.forEach(el => el.classList.remove("selecionado"));
+  itens.forEach((el, i) => {
+    if (i === index) {
+      el.classList.add("selecionado");
+      autorizadoSelecionado = index;
+    } else {
+      el.classList.remove("selecionado");
+    }
+  });
+}
+
+// ===== Adicionar autorizado =====
+function adicionarAutorizado() {
+  const nome = document.getElementById("nomeAutInput").value;
+  const placa = document.getElementById("placaAutInput").value.toUpperCase();
+  const rgcpf = document.getElementById("rgcpfAutInput").value;
+
+  if (!nome || !placa || !rgcpf) { 
+    alert("Preencha todos os campos!"); 
+    return; 
+  }
+
+  bancoAutorizados.push({ nome, placa, rgcpf });
+  salvarBanco();
+
+  document.getElementById("nomeAutInput").value = "";
+  document.getElementById("placaAutInput").value = "";
+  document.getElementById("rgcpfAutInput").value = "";
+
+  alert("Autorizado cadastrado com sucesso!");
+}
+
+// ===== Editar autorizado =====
+function iniciarEdicaoAut() {
+  if (autorizadoSelecionado === null) {
+    alert("Selecione um autorizado para editar!");
+    return;
+  }
+
+  const index = autorizadoSelecionado;
+  const item = bancoAutorizados[index];
+
+  mostrarPopup(`
+    <h3>Editar Autorizado</h3>
+    <input type="text" id="editNome" value="${item.nome}" placeholder="Nome">
+    <input type="text" id="editPlaca" value="${item.placa}" placeholder="Placa">
+    <input type="text" id="editRgcpf" value="${item.rgcpf}" placeholder="RG/CPF">
+    <button class="entrada" onclick="confirmarEdicaoAut(${index})">Confirmar</button>
+  `);
+}
+
+function confirmarEdicaoAut(index) {
+  const nome = document.getElementById("editNome").value;
+  const placa = document.getElementById("editPlaca").value.toUpperCase();
+  const rgcpf = document.getElementById("editRgcpf").value;
+
+  if (!nome || !placa || !rgcpf) { 
+    alert("Preencha todos os campos!"); 
+    return; 
+  }
+
+  bancoAutorizados[index] = { nome, placa, rgcpf };
+  salvarBanco();
+  fecharPopup();
+
   autorizadoSelecionado = null;
+  atualizarAutorizados();
+  alert("Autorizado editado com sucesso!");
 }
 
 // ===== Excluir autorizado =====
@@ -174,15 +264,19 @@ function iniciarExclusaoAut() {
     alert("Selecione um autorizado para excluir!");
     return;
   }
-  const index = autorizadoSelecionado;
 
+  const index = autorizadoSelecionado;
   if (confirm(`Deseja realmente excluir ${bancoAutorizados[index].nome}?`)) {
     bancoAutorizados.splice(index, 1);
-    autorizadoSelecionado = null; // limpa seleção
+    autorizadoSelecionado = null;
     salvarBanco();
+    atualizarAutorizados();
     alert("Autorizado excluído com sucesso!");
   }
 }
+
+// ===== Conecta input de pesquisa =====
+document.getElementById("pesquisaAut").addEventListener("input", filtrarAutorizados);
 
 function editarCadastro(index) {
   const item = bancoCadastros[index];
@@ -631,6 +725,26 @@ function enviarPDFDiaAnteriorSeNecessario() {
 
   reader.readAsDataURL(pdfBlob);
 }
+
+
+function filtrarAutorizados() {
+  const filtro = document.getElementById("pesquisaAut").value.toLowerCase();
+  const listaDiv = document.getElementById("listaAutorizados");
+  listaDiv.innerHTML = "";
+
+  bancoAutorizados.forEach((item, index) => {
+    const texto = `${item.nome} ${item.placa} ${item.rgcpf}`.toLowerCase();
+    if (texto.includes(filtro)) {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
+      div.onclick = () => selecionarAutorizado(index);
+      listaDiv.appendChild(div);
+    }
+  });
+}
+
+document.getElementById("pesquisaAut").addEventListener("input", filtrarAutorizados);
 
 // ===== Dispara apenas ao abrir o app =====
 window.addEventListener("load", () => {
