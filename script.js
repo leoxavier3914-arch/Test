@@ -83,7 +83,6 @@ function selecionarCadastro(index) {
   }
 }
 
-
 function atualizarTabelaAndamento() {
   const tbody = document.getElementById("tabelaAndamento");
   tbody.innerHTML = "";
@@ -240,7 +239,7 @@ function filtrarHistorico() {
 
 
 // ===== Exportação PDF =====
-function exportarPDF(dataHoje) {
+function exportarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -250,11 +249,7 @@ function exportarPDF(dataHoje) {
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
 
-  // Título com data e horário
-  doc.setFontSize(12);
-  doc.text(`Data: ${dataHoje} | Horário: 00:00 até 23:59`, 105, 22, null, null, "center");
-
-  let y = 30;
+  let y = 20;
   const rows = tabela.querySelectorAll(".item");
   rows.forEach((row) => {
     doc.setFontSize(12);
@@ -263,16 +258,16 @@ function exportarPDF(dataHoje) {
     if (y > 280) { doc.addPage(); y = 20; }
   });
 
+  const dataHoje = new Date().toISOString().split("T")[0];
+  const filename = `historico-${dataHoje}.pdf`;
+
   const pdfBlob = doc.output("blob"); // retorna blob para envio
   return pdfBlob;
 }
 
-
 function enviarPDFManual() {
-// Gera o PDF usando a data do histórico
-const pdfBlob = exportarPDF(dataHistorico);
-
- if (!pdfBlob) return;
+  const pdfBlob = exportarPDF();
+  if (!pdfBlob) return;
 
   const formData = new FormData();
   formData.append("service_id", "service_t9bocqh");
@@ -453,7 +448,6 @@ function limparTudo() {
   } else if (senha !== null) { alert("Senha incorreta ❌"); }
 }
 
-
 // ===== EXPORTAÇÃO LOCALSTORAGE =====
 function exportLocalStorage() {
     return JSON.stringify({
@@ -541,6 +535,7 @@ const minutoEnvio = 59;
 function jaEnviouData(data) {
   const enviados = JSON.parse(localStorage.getItem("enviosPDF")) || [];
   return enviados.includes(data);
+
 }
 
 // Marca que enviou um dia específico
@@ -561,10 +556,6 @@ function enviarPDFAutomaticoPorData(data) {
   const doc = new jsPDF();
   doc.setFontSize(14);
   doc.text("Histórico de Placas", 105, 15, null, null, "center");
-
-  // Título com data e horário
-  doc.setFontSize(12);
-  doc.text(`Data: ${data} | Horário: 00:00 até 23:59`, 105, 22, null, null, "center");
 
   let y = 20;
   historicoDoDia.forEach(item => {
@@ -610,77 +601,3 @@ function verificarEnvioAutomatico() {
   const agora = new Date();
   const hoje = formatarData(agora);
   const ontem = formatarData(new Date(agora.getTime() - 24 * 60 * 60 * 1000));
-
-  // Se não enviou ontem e há histórico, envia
-  if (!jaEnviouData(ontem)) {
-    enviarPDFAutomaticoPorData(ontem);
-  }
-
-  // Se já passou da hora de hoje e não enviou, envia hoje
-  if (!jaEnviouData(hoje) && (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))) {
-    enviarPDFAutomaticoPorData(hoje);
-  }
-}
-
-// ===== EXECUTA AO ABRIR O APP =====
-window.addEventListener("load", () => {
-  verificarEnvioAutomatico();
-});
-
-// ===== CHECAGEM INTERVALO (a cada minuto) =====
-setInterval(() => {
-  const agora = new Date();
-  if (agora.getHours() === horaEnvio && agora.getMinutes() === minutoEnvio) {
-    verificarEnvioAutomatico();
-  }
-}, 60000);
-
-// Cria input de pesquisa
-const pesquisaInput = document.createElement("input");
-pesquisaInput.type = "text";
-pesquisaInput.placeholder = "Pesquisar por placa ou nome...";
-pesquisaInput.id = "pesquisaAut";
-pesquisaInput.style = "padding:5px; margin-bottom:5px; width:95%;";
-
-// Adiciona acima da lista de autorizados
-const containerAut = document.getElementById("listaAutorizados");
-containerAut.parentNode.insertBefore(pesquisaInput, containerAut);
-
-// Evento de digitação
-pesquisaInput.addEventListener("input", atualizarAutorizadosFiltrados);
-
-
-function atualizarAutorizadosFiltrados() {
-  const filtro = document.getElementById("pesquisaAut").value.toLowerCase();
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  // Filtra por nome ou placa
-  let filtrados = bancoAutorizados.filter(item =>
-    item.nome.toLowerCase().includes(filtro) || item.placa.toLowerCase().includes(filtro)
-  );
-
-  // Ordena por placa primeiro, depois por nome
-  filtrados.sort((a, b) => {
-    if (a.placa < b.placa) return -1;
-    if (a.placa > b.placa) return 1;
-    if (a.nome < b.nome) return -1;
-    if (a.nome > b.nome) return 1;
-    return 0;
-  });
-
-  // Atualiza a lista
-  filtrados.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
-    div.onclick = () => selecionarAutorizado(index);
-    listaDiv.appendChild(div);
-  });
-}
-
-
-
-// ===== Inicialização =====
-mostrarPagina('inicioContainer');
-salvarBanco();
