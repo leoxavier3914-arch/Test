@@ -561,8 +561,19 @@ function enviarPDFAutomaticoPorData(data) {
     if (y > 280) { doc.addPage(); y = 20; }
   });
 
+  // Criar Blob e File temporário
   const pdfBlob = doc.output("blob");
+  const pdfFile = new File([pdfBlob], "historico.pdf", { type: "application/pdf" });
 
+  // Cria input file temporário
+  const tempInput = document.createElement("input");
+  tempInput.type = "file";
+  tempInput.files = new DataTransfer().files;
+  const dt = new DataTransfer();
+  dt.items.add(pdfFile);
+  tempInput.files = dt.files;
+
+  // Cria FormData para enviar via EmailJS
   const formData = new FormData();
   formData.append("service_id", "service_t9bocqh");
   formData.append("template_id", "template_n4uw7xi");
@@ -571,24 +582,25 @@ function enviarPDFAutomaticoPorData(data) {
   formData.append("title", `Histórico Diário (${data})`);
   formData.append("name", "Sistema de Placas");
   formData.append("message", "Segue o histórico diário em PDF.");
-  formData.append("files[]", pdfBlob, "historico.pdf");
+  formData.append("files[]", pdfFile);
 
-  fetch("https://api.emailjs.com/api/v1.0/email/send-form", { method: "POST", body: formData })
-    .then(() => {
-      console.log(`✅ PDF do dia ${data} enviado!`);
-
-      // Marca que já enviou o dia
-      marcarEnvioData(data);
-
-      // Remove os registros enviados do histórico
-      bancoHistorico = bancoHistorico.filter(h => h.data !== data);
-      localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
-
-      // Atualiza a tela
-      atualizarTabelaAndamento();
-      filtrarHistorico();
-    })
-    .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
+  // Envia via fetch
+  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
+    method: "POST",
+    body: formData
+  })
+  .then(() => {
+    console.log(`✅ PDF do dia ${data} enviado!`);
+    // Marca envio
+    marcarEnvioData(data);
+    // Remove histórico enviado
+    bancoHistorico = bancoHistorico.filter(h => h.data !== data);
+    localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
+    // Atualiza a tela
+    atualizarTabelaAndamento();
+    filtrarHistorico();
+  })
+  .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
 }
 
 // ===== FUNÇÕES DE CONTROLE DE ENVIO =====
