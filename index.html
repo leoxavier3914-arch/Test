@@ -61,13 +61,15 @@
 <!-- AUTORIZADOS -->
 <div id="autorizadosContainer">
   <h2>Autorizados</h2>
+  <input type="text" id="pesquisaAut" placeholder="Pesquisar autorizado..." style="margin-bottom:10px; padding:5px; width:100%;">
+<div id="listaAutorizados"></div>
+  <div id="listaAutorizados" class="lista"></div>
   <input type="text" id="nomeAutInput" placeholder="Nome">
   <input type="text" id="placaAutInput" placeholder="Placa" maxlength="7" oninput="this.value=this.value.toUpperCase()">
   <input type="text" id="rgcpfAutInput" placeholder="RG/CPF">
   <button onclick="adicionarAutorizado()">Adicionar</button>
  <button class="botaoExcluir" onclick="iniciarExclusaoAut()">Excluir</button>
   <button class="botaoEditar" onclick="iniciarEdicaoAut()">Editar</button>
-  <div id="listaAutorizados" class="lista"></div>
 </div>
 
 <!-- HISTÓRICO -->
@@ -76,12 +78,10 @@
   <label for="dataFiltro">Selecionar data:</label>
   <input type="date" id="dataFiltro">
   <button onclick="filtrarHistorico()">Buscar</button>
+  <div id="listaHistorico" class="lista"></div>
   <button id="exportBtn" onclick="exportarCSV()">Exportar CSV</button>
   <button onclick="exportarPDF()">Exportar PDF</button>
   <button onclick="enviarPDFManual()">Enviar por e-mail</button>
-  <input type="text" id="pesquisaAut" placeholder="Pesquisar autorizado..." style="margin-bottom:10px; padding:5px; width:100%;">
-<div id="listaAutorizados"></div>
-  <div id="listaHistorico" class="lista"></div>
 </div>
 
 <!-- script principal -->
