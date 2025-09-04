@@ -266,29 +266,35 @@ function exportarPDF() {
 }
 
 function enviarPDFManual() {
+  filtrarHistorico(); // garante que a div está preenchida
   const pdfBlob = exportarPDF();
   if (!pdfBlob) return;
 
-  const formData = new FormData();
-  formData.append("service_id", "service_t9bocqh");
-  formData.append("template_id", "template_n4uw7xi");
-  formData.append("user_id", "vPVpXFO3k8QblVbqr");
-  formData.append("to_email", "histplacas@gmail.com");
-  formData.append("title", "Histórico Diário (PDF Manual)");
-  formData.append("name", "Sistema de Placas");
-  formData.append("message", "Segue o histórico em PDF.");
-  formData.append("files[]", pdfBlob, "historico.pdf"); // ✅ anexo real
+  // Converte Blob para Base64
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(",")[1]; // remove o prefixo "data:application/pdf;base64,"
+    
+    const templateParams = {
+      to_email: "histplacas@gmail.com",
+      title: "Histórico Diário (PDF Manual)",
+      name: "Sistema de Placas",
+      message: "Segue o histórico em PDF.",
+      attachment: [
+        {
+          name: "historico.pdf",
+          data: base64,
+          type: "application/pdf"
+        }
+      ]
+    };
 
-  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.text())
-  .then(res => alert("📧 PDF enviado manualmente com sucesso!"))
-  .catch(err => alert("❌ Erro ao enviar: " + err));
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", templateParams, "vPVpXFO3k8QblVbqr")
+      .then(() => alert("📧 PDF enviado manualmente com sucesso!"))
+      .catch(err => alert("❌ Erro ao enviar: " + err));
+  };
+  reader.readAsDataURL(pdfBlob);
 }
-
-
 
 // ===== Entrada/Saída de placas =====
 function verificarPlaca() {
@@ -561,46 +567,30 @@ function enviarPDFAutomaticoPorData(data) {
     if (y > 280) { doc.addPage(); y = 20; }
   });
 
-  // Criar Blob e File temporário
   const pdfBlob = doc.output("blob");
-  const pdfFile = new File([pdfBlob], "historico.pdf", { type: "application/pdf" });
 
-  // Cria input file temporário
-  const tempInput = document.createElement("input");
-  tempInput.type = "file";
-  tempInput.files = new DataTransfer().files;
-  const dt = new DataTransfer();
-  dt.items.add(pdfFile);
-  tempInput.files = dt.files;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(",")[1];
+    const templateParams = {
+      to_email: "histplacas@gmail.com",
+      title: `Histórico Diário (${data})`,
+      name: "Sistema de Placas",
+      message: "Segue o histórico diário em PDF.",
+      attachment: [
+        { name: "historico.pdf", data: base64, type: "application/pdf" }
+      ]
+    };
 
-  // Cria FormData para enviar via EmailJS
-  const formData = new FormData();
-  formData.append("service_id", "service_t9bocqh");
-  formData.append("template_id", "template_n4uw7xi");
-  formData.append("user_id", "vPVpXFO3k8QblVbqr");
-  formData.append("to_email", "romeikebeauty@gmail.com");
-  formData.append("title", `Histórico Diário (${data})`);
-  formData.append("name", "Sistema de Placas");
-  formData.append("message", "Segue o histórico diário em PDF.");
-  formData.append("files[]", pdfFile);
-
-  // Envia via fetch
-  fetch("https://api.emailjs.com/api/v1.0/email/send-form", {
-    method: "POST",
-    body: formData
-  })
-  .then(() => {
-    console.log(`✅ PDF do dia ${data} enviado!`);
-    // Marca envio
-    marcarEnvioData(data);
-    // Remove histórico enviado
-    bancoHistorico = bancoHistorico.filter(h => h.data !== data);
-    localStorage.setItem("bancoHistorico", JSON.stringify(bancoHistorico));
-    // Atualiza a tela
-    atualizarTabelaAndamento();
-    filtrarHistorico();
-  })
-  .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
+    emailjs.send("service_t9bocqh", "template_n4uw7xi", templateParams, "vPVpXFO3k8QblVbqr")
+      .then(() => {
+        marcarEnvioData(data);
+        atualizarTabelaAndamento();
+        filtrarHistorico();
+      })
+      .catch(err => console.error("❌ Erro ao enviar PDF automático:", err));
+  };
+  reader.readAsDataURL(pdfBlob);
 }
 
 // ===== FUNÇÕES DE CONTROLE DE ENVIO =====
