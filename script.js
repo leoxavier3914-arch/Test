@@ -84,22 +84,6 @@ function selecionarCadastro(index) {
 }
 
 
-
-
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    listaDiv.innerHTML += `
-      <div class="item">
-        <input type="radio" name="selecionadoAut" value="${index}" id="aut${index}">
-        <label for="aut${index}"><b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}</label>
-      </div>
-    `;
-  });
-}
-
 function atualizarTabelaAndamento() {
   const tbody = document.getElementById("tabelaAndamento");
   tbody.innerHTML = "";
@@ -122,20 +106,6 @@ function adicionarAutorizado() {
   alert("Autorizado cadastrado com sucesso!");
 }
 
-function atualizarAutorizados() {
-  const listaDiv = document.getElementById("listaAutorizados");
-  listaDiv.innerHTML = "";
-
-  bancoAutorizados.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${item.placa}</b> - ${item.nome} - RG/CPF: ${item.rgcpf}`;
-    div.onclick = () => selecionarAutorizado(index);
-    listaDiv.appendChild(div);
-  });
-}
-
-let autorizadoSelecionado = null;
 
 function atualizarAutorizados() {
   const listaDiv = document.getElementById("listaAutorizados");
@@ -620,11 +590,9 @@ importInput.addEventListener("change", (event) => {
 });
 
 
-// Horário configurado para envio (pode mudar aqui)
-const horaEnvio = 18;
-const minutoEnvio = 30;
+// ===== Funções de envio automático do dia anterior =====
 
-// Verifica se já enviou ontem
+// Verifica se já enviou o PDF do dia anterior
 function jaEnviouOntem() {
   const ultimoEnvio = localStorage.getItem("ultimoEnvio");
   const ontem = new Date();
@@ -633,39 +601,15 @@ function jaEnviouOntem() {
   return ultimoEnvio === dataOntem;
 }
 
-// marca se ja enviou
-function marcarEnvioOntem() {
+// Função principal que envia PDF do dia anterior, se necessário
+function enviarPDFDiaAnteriorSeNecessario() {
   const ontem = new Date();
   ontem.setDate(ontem.getDate() - 1);
   const dataOntem = formatarData(ontem);
-  localStorage.setItem("ultimoEnvio", dataOntem);
-}
 
+  if (jaEnviouOntem()) return; // já enviou, não faz nada
 
-// Verificação ao abrir/recarregar o sistema
-window.addEventListener("load", () => {
-  const agora = new Date();
-  if (
-    !jaEnviouHoje() &&
-    (agora.getHours() > horaEnvio || (agora.getHours() === horaEnvio && agora.getMinutes() >= minutoEnvio))
-  ) {
-    enviarHistoricoDiario();
-  }
-});
-
-function enviarHistoricoDiario() {
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(hoje.getDate() - 1);
-
-  const dataOntem = formatarData(ontem);
-
-  // Se já enviou, não faz nada
-  const ultimoEnvio = localStorage.getItem("ultimoEnvio");
-  if (ultimoEnvio === dataOntem) return;
-
-  // Gera o PDF do dia anterior
-  const pdfBlob = exportarPDF(dataOntem);
+  const pdfBlob = exportarPDF(dataOntem); // usa sua função de PDF
   if (!pdfBlob) return; // sem histórico, não envia
 
   const reader = new FileReader();
@@ -688,15 +632,7 @@ function enviarHistoricoDiario() {
   reader.readAsDataURL(pdfBlob);
 }
 
-setInterval(() => {
-  enviarHistoricoDiario();
-}, 60000); // verifica a cada minuto
-
-
-
-// ===== Inicialização =====
+// ===== Dispara apenas ao abrir o app =====
 window.addEventListener("load", () => {
-  checarExportacaoAutomaticaPDF();
-  enviarHistoricoDiario();
+  enviarPDFDiaAnteriorSeNecessario();
 });
-
